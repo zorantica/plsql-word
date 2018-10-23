@@ -1,1 +1,23 @@
-# zt-word
+# Oracle PL/SQL Package for Microsoft Word Documents Generation
+Microsoft Word Documents Generator Package provides functionality to quickly and efficiently generate Microsoft Word Documents (DOCX) directly from Oracle database.
+
+It requires no additional resources and it is developed in pure PL/SQL.
+
+## Changelog
+1.0 - Initial Release
+
+## Install
+- download 2 script files from "package" directory 
+- execute them in database schema in following order:
+1. PKS script file (package definition)
+2. PKB file (package body)
+
+New Package ZT_WORD is created in database schema.
+
+## How to use
+Procedure and Function descriptions with input and output parameters and examples are located in package definition script.
+
+Additional script with examples is available in "examples" directory
+
+## Demo Application
+*in development*
