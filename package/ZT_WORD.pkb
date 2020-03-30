@@ -1,13 +1,4 @@
 CREATE OR REPLACE PACKAGE BODY zt_word AS
-/******************************************************************************
-   NAME:       zt_word
-   PURPOSE:
-
-   REVISIONS:
-   Ver        Date        Author           Description
-   ---------  ----------  ---------------  ------------------------------------
-   1.0        28/10/2016      zorant       1. Created this package body.
-******************************************************************************/
 
     --global variables 
     grDoc t_documents := t_documents();
@@ -27,12 +18,12 @@ CREATE OR REPLACE PACKAGE BODY zt_word AS
         p_orientation => 'portrait');
 
 
---FUNCTION 56,7 
-
 
 FUNCTION f_unit_convert(
     p_doc_id number default null,
-    p_value number) RETURN number IS
+    p_usage varchar2 default 'page',  --values: page, image, image_rotate
+    p_value number
+    ) RETURN number IS
 
     lnIndex number;
 
@@ -41,9 +32,12 @@ BEGIN
         RETURN p_value;
     end if;
     
-    CASE grDoc(p_doc_id).unit
-        WHEN 'cm' THEN lnIndex := 567;
-        WHEN 'mm' THEN lnIndex := 56.7;
+    CASE
+        WHEN p_usage = 'page' and grDoc(p_doc_id).unit = 'cm' THEN lnIndex := 567;
+        WHEN p_usage = 'page' and grDoc(p_doc_id).unit = 'mm' THEN lnIndex := 56.7;
+        WHEN p_usage = 'image' and grDoc(p_doc_id).unit = 'cm' THEN lnIndex := 360000;
+        WHEN p_usage = 'image' and grDoc(p_doc_id).unit = 'mm' THEN lnIndex := 36000;
+        WHEN p_usage = 'image_rotate' THEN lnIndex := 60000;
         ELSE lnIndex := 1;
     END CASE;
         
@@ -165,6 +159,9 @@ BEGIN
     --lists init
     grDoc(lnID).lists := t_list();
     
+    --images init
+    grDoc(lnID).images := t_images();
+    
     RETURN lnID;
 END;
 
@@ -207,6 +204,94 @@ BEGIN
 END;    
 
 
+FUNCTION f_image_data(
+    p_image_id pls_integer,
+    p_width number default 0,
+    p_height number default 0,
+    p_rotate_angle number default 0,
+    p_extent_area_left number default 0,
+    p_extent_area_top number default 0,
+    p_extent_area_right number default 0,
+    p_extent_area_bottom number default 0,
+    p_inline_yn varchar2 default 'Y',
+    p_relative_from_h varchar2 default 'page',  --page, margin, column
+    p_position_type_h varchar2 default 'align',  --align, posOffset
+    p_position_align_h varchar2 default 'center',  --left, right, center
+    p_position_h number default 0,  --offset from object
+    p_relative_from_v varchar2 default 'page',
+    p_position_type_v varchar2 default 'align',
+    p_position_align_v varchar2 default 'center',  --top, bottom, center
+    p_position_v number default 0
+    ) RETURN r_image_data IS
+
+    lrImageParams r_image_data;
+    
+BEGIN
+    lrImageParams.image_id := p_image_id;
+    lrImageParams.width := p_width;
+    lrImageParams.height := p_height;
+    lrImageParams.rotate_angle := p_rotate_angle;
+    lrImageParams.extent_area_left := p_extent_area_left;
+    lrImageParams.extent_area_top := p_extent_area_top;
+    lrImageParams.extent_area_right := p_extent_area_right;
+    lrImageParams.extent_area_bottom := p_extent_area_bottom;
+    lrImageParams.inline_yn := p_inline_yn;
+    lrImageParams.relative_from_h := p_relative_from_h;
+    lrImageParams.position_type_h := p_position_type_h;
+    lrImageParams.position_align_h := p_position_align_h;
+    lrImageParams.position_h := p_position_h;
+    lrImageParams.relative_from_v := p_relative_from_v;
+    lrImageParams.position_type_v := p_position_type_v;
+    lrImageParams.position_align_v := p_position_align_v;
+    lrImageParams.position_v := p_position_v;
+    
+    RETURN lrImageParams;
+END f_image_data;
+
+FUNCTION f_add_image_to_document(
+    p_doc_id number,
+    p_filename varchar2,
+    p_image blob
+    ) RETURN pls_integer IS
+
+    lnID pls_integer;
+    
+BEGIN
+    grDoc(p_doc_id).images.extend;
+    lnID := grDoc(p_doc_id).images.count;
+    
+    grDoc(p_doc_id).images(lnID).image_name := p_filename;
+    grDoc(p_doc_id).images(lnID).image_file := p_image;
+
+    grDoc(p_doc_id).images(lnID).rel_id := grDoc(p_doc_id).rels_id;
+    grDoc(p_doc_id).rels_id := grDoc(p_doc_id).rels_id + 1;
+
+    RETURN lnID;
+END f_add_image_to_document;
+
+
+
+FUNCTION f_new_image_instance(
+    p_doc_id number,
+    p_container_id pls_integer default null,
+    p_image_data r_image_data
+    ) RETURN pls_integer IS
+    
+    lnID pls_integer;
+    lnContainerID pls_integer := nvl(p_container_id, 1);
+    
+BEGIN
+    grDoc(p_doc_id).containers(lnContainerID).elements.extend;
+    lnID := grDoc(p_doc_id).containers(lnContainerID).elements.count;
+    
+    grDoc(p_doc_id).containers(lnContainerID).elements(lnID).element_type := 'IMAGE';
+    grDoc(p_doc_id).containers(lnContainerID).elements(lnID).image_data := p_image_data;
+    
+    RETURN lnID;
+END f_new_image_instance;
+
+
+
 FUNCTION f_border(
     p_border_type varchar2 default null,
     p_width number default null,
@@ -236,8 +321,10 @@ PROCEDURE p_table_cell(
     p_border_left r_border default null,
     p_border_right r_border default null,
     p_background_color varchar2 default null,
-    p_text varchar2 DEFAULT null,
-    p_font r_font DEFAULT null) IS
+    p_text varchar2 default null,
+    p_font r_font default null,
+    p_image_data r_image_data default null
+    ) IS
     
     lnID pls_integer;
     
@@ -254,19 +341,21 @@ BEGIN
     --background color
     grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).background_color := p_background_color;
 
-    --borders 
+    --borders
     grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).border_top := p_border_top;
     grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).border_bottom := p_border_bottom;
     grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).border_left := p_border_left;
     grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).border_right := p_border_right;
-
+    
     --text
-    if p_text is not null then
+    if p_text is not null or p_image_data.image_id is not null then
         grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts.extend;
         lnID := grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts.count;
         
         grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).text := p_text;
         grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).font := p_font;
+
+        grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).image_data := p_image_data;
     end if;
 END;
 
@@ -329,7 +418,14 @@ FUNCTION f_new_table(
     p_rows pls_integer,
     p_columns pls_integer,
     p_table_width pls_integer default null,
-    p_columns_width varchar2 default null) RETURN pls_integer IS
+    p_columns_width varchar2 default null,
+    p_border_top r_border default null,
+    p_border_bottom r_border default null,
+    p_border_left r_border default null,
+    p_border_right r_border default null,
+    p_border_inside_h r_border default null,
+    p_border_inside_v r_border default null
+    ) RETURN pls_integer IS
 
     lnID pls_integer;
     
@@ -342,6 +438,13 @@ BEGIN
     grDoc(p_doc_id).containers(1).elements(lnID).table_data.columns_num := p_columns;
 
     grDoc(p_doc_id).containers(1).elements(lnID).table_data.width := p_table_width;
+
+    grDoc(p_doc_id).containers(1).elements(lnID).table_data.border_top := p_border_top;
+    grDoc(p_doc_id).containers(1).elements(lnID).table_data.border_bottom := p_border_bottom;
+    grDoc(p_doc_id).containers(1).elements(lnID).table_data.border_left := p_border_left;
+    grDoc(p_doc_id).containers(1).elements(lnID).table_data.border_right := p_border_right;
+    grDoc(p_doc_id).containers(1).elements(lnID).table_data.border_inside_h := p_border_inside_h;
+    grDoc(p_doc_id).containers(1).elements(lnID).table_data.border_inside_v := p_border_inside_v;
     
     p_table_column_width(p_doc_id, lnID, p_columns_width);
     
@@ -466,19 +569,19 @@ FUNCTION f_get_page(
     lrPage zt_word.r_page;
     
 BEGIN
-    lrPage.width := f_unit_convert(p_doc_id, p_width);
-    lrPage.height := f_unit_convert(p_doc_id, p_height);
+    lrPage.width := f_unit_convert(p_doc_id, 'page', p_width);
+    lrPage.height := f_unit_convert(p_doc_id, 'page', p_height);
 
-    lrPage.margin_top := f_unit_convert(p_doc_id, p_margin_top);
-    lrPage.margin_bottom := f_unit_convert(p_doc_id, p_margin_bottom);
-    lrPage.margin_left := f_unit_convert(p_doc_id, p_margin_left);
-    lrPage.margin_right := f_unit_convert(p_doc_id, p_margin_right);
+    lrPage.margin_top := f_unit_convert(p_doc_id, 'page', p_margin_top);
+    lrPage.margin_bottom := f_unit_convert(p_doc_id, 'page', p_margin_bottom);
+    lrPage.margin_left := f_unit_convert(p_doc_id, 'page', p_margin_left);
+    lrPage.margin_right := f_unit_convert(p_doc_id, 'page', p_margin_right);
 
-    lrPage.header_h := f_unit_convert(p_doc_id, p_header_height);
-    lrPage.footer_h := f_unit_convert(p_doc_id, p_footer_height);
+    lrPage.header_h := f_unit_convert(p_doc_id, 'page', p_header_height);
+    lrPage.footer_h := f_unit_convert(p_doc_id, 'page', p_footer_height);
 
-    lrPage.header_ref := f_unit_convert(p_doc_id, p_header_ref);
-    lrPage.footer_ref := f_unit_convert(p_doc_id, p_footer_ref);
+    lrPage.header_ref := f_unit_convert(p_doc_id, 'page', p_header_ref);
+    lrPage.footer_ref := f_unit_convert(p_doc_id, 'page', p_footer_ref);
 
     lrPage.orientation := p_orientation;
     
@@ -513,8 +616,10 @@ PROCEDURE p_add_text(
     p_doc_id number,
     p_container_id pls_integer default null,
     p_paragraph_id number,
-    p_text varchar2,
-    p_font r_font default null) IS
+    p_text varchar2 default null,
+    p_font r_font default null,
+    p_image_data r_image_data default null
+    ) IS
     
     lnID number;
     lnContainerID pls_integer := nvl(p_container_id, 1);
@@ -529,9 +634,9 @@ BEGIN
 
     grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts(lnID).text := p_text;
     grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts(lnID).font := p_font;
+
+    grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts(lnID).image_data := p_image_data;
 END;
-
-
 
 
 
@@ -681,7 +786,7 @@ END;
                                    , t_comment
                                    )
                    );
-  end;
+  end finish_zip;
 
 
 
@@ -697,7 +802,7 @@ PROCEDURE p_add_document_to_zip(
 BEGIN
     lbBlob := c2b(p_document);
     add1file(p_zip, p_name, lbBlob);
-END;
+END p_add_document_to_zip;
 
 
 PROCEDURE p_add_document_to_zip(
@@ -708,7 +813,7 @@ PROCEDURE p_add_document_to_zip(
 
 BEGIN
     add1file(p_zip, p_name, p_document);
-END;
+END p_add_document_to_zip;
 
 
 
@@ -728,7 +833,7 @@ BEGIN
         utl_file.put_raw(lfFile, dbms_lob.substr(p_document, lnLen, i * lnLen + 1));
     END LOOP;
     utl_file.fclose(lfFile);
-END;
+END p_save_file;
 
 
 
@@ -738,7 +843,8 @@ FUNCTION f_content_types(p_doc_id number) RETURN clob IS
 BEGIN
     lcClob := '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
-	<Default Extension="png" ContentType="image/png"/>
+    <Default Extension="png" ContentType="image/png"/>
+    <Default Extension="jpg" ContentType="image/jpg"/>
 	<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
 	<Default Extension="xml" ContentType="application/xml"/>
 	<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>' ||
@@ -763,7 +869,7 @@ BEGIN
     lcClob := lcClob || chr(10) || '</Types>';
 
     RETURN lcClob;
-END;
+END f_content_types;
 
 
 FUNCTION f_rels RETURN clob IS
@@ -774,7 +880,7 @@ BEGIN
 	<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" Target="docProps/core.xml"/>
 	<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
 </Relationships>';
-END;
+END f_rels;
 
 
 FUNCTION f_app RETURN clob IS
@@ -798,7 +904,7 @@ BEGIN
 	<HyperlinksChanged>false</HyperlinksChanged>
 	<AppVersion>15.0000</AppVersion>
 </Properties>';
-END;
+END f_app;
 
 FUNCTION f_core(p_doc_id number) RETURN clob IS
 BEGIN
@@ -814,12 +920,16 @@ BEGIN
 	<dcterms:created xsi:type="dcterms:W3CDTF">' || to_char(grDoc(p_doc_id).create_date, 'yyyy-mm-dd') || 'T' || to_char(grDoc(p_doc_id).create_date, 'hh24:mi:ss') || 'Z</dcterms:created>
 	<dcterms:modified xsi:type="dcterms:W3CDTF">' || to_char(grDoc(p_doc_id).create_date, 'yyyy-mm-dd') || 'T' || to_char(grDoc(p_doc_id).create_date, 'hh24:mi:ss') || 'Z</dcterms:modified>
 </cp:coreProperties>';
-END;
+END f_core;
 
 
 
-FUNCTION f_document_xml_rels(p_doc_id pls_integer) RETURN clob IS
+FUNCTION f_document_xml_rels(
+    p_doc_id pls_integer
+    ) RETURN clob IS
+    
     lcRels clob;
+    
 BEGIN
     lcRels := '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
@@ -848,11 +958,48 @@ BEGIN
                 '.xml"/>';
         end if;
 	END LOOP;
+
+    --references for images
+    FOR t IN 1 .. grDoc(p_doc_id).images.count LOOP
+        lcRels := lcRels || chr(10) ||
+            chr(9) || '<Relationship Id="rId' || 
+            grDoc(p_doc_id).images(t).rel_id || 
+            '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' ||
+            grDoc(p_doc_id).images(t).image_name ||
+            '"/>';
+    END LOOP;
+    
 	
     lcRels := lcRels || chr(10) || '</Relationships>';
 
     RETURN lcRels;
-END;
+END f_document_xml_rels;
+
+
+FUNCTION f_container_xml_rels(
+    p_doc_id pls_integer
+    ) RETURN clob IS
+    
+    lcRels clob;
+    
+BEGIN
+    lcRels := '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">';
+	
+    --references for images
+    FOR t IN 1 .. grDoc(p_doc_id).images.count LOOP
+        lcRels := lcRels || chr(10) ||
+            chr(9) || '<Relationship Id="rId' || 
+            grDoc(p_doc_id).images(t).rel_id || 
+            '" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="media/' ||
+            grDoc(p_doc_id).images(t).image_name ||
+            '"/>';
+    END LOOP;
+	
+    lcRels := lcRels || chr(10) || '</Relationships>';
+
+    RETURN lcRels;
+END f_container_xml_rels;
 
 
 FUNCTION f_theme RETURN clob IS
@@ -1116,7 +1263,7 @@ BEGIN
 		</a:ext>
 	</a:extLst>
 </a:theme>';
-END;
+END f_theme;
 
 
 
@@ -1146,8 +1293,78 @@ BEGIN
 		<w:sig w:usb0="A00002EF" w:usb1="4000207B" w:usb2="00000000" w:usb3="00000000" w:csb0="0000019F" w:csb1="00000000"/>
 	</w:font>
 </w:fonts>';
-END;
+END f_font_table;
 
+/*
+FUNCTION f_add_image (p_image_name varchar2, p_params r_image_params) RETURN CLOB IS
+BEGIN
+
+RETURN '<w:p w:rsidR="009B1A39" w:rsidRDefault="0051609D">
+          <w:bookmarkStart w:id="0" w:name="_GoBack"/>
+          <w:r>
+            <w:rPr>
+              <w:noProof/>
+            </w:rPr>
+            <w:drawing>
+              <wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="1" behindDoc="1" locked="0" layoutInCell="1" allowOverlap="1">
+                <wp:simplePos x="'||p_params.offset_h||'" y="'||p_params.offset_v||'"/>
+                <wp:positionH relativeFrom="'||p_params.relative_from_h||'">
+                  <wp:posOffset>'||p_params.offset_h||'</wp:posOffset>
+                </wp:positionH>
+                <wp:positionV relativeFrom="'||p_params.relative_from_v||'">
+                  <wp:posOffset>'||p_params.offset_v||'</wp:posOffset>
+                </wp:positionV>
+                <wp:extent cx="'||p_params.size_x||'" cy="'||p_params.size_y||'"/>
+                <wp:effectExtent l="'||p_params.effect_extent_l||'" t="'||p_params.effect_extent_t||'" r="'||p_params.effect_extent_r||'" b="'||p_params.effect_extent_b||'"/>
+                <wp:wrapNone/>
+                <wp:docPr id="2" name="Picture 2"/>
+                <wp:cNvGraphicFramePr>
+                  <a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>
+                </wp:cNvGraphicFramePr>
+                <a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+                  <a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                    <pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+                      <pic:nvPicPr>
+                        <pic:cNvPr id="2" name="D3RoS 1920x1080.jpg"/>
+                        <pic:cNvPicPr/>
+                      </pic:nvPicPr>
+                      <pic:blipFill>
+                        <a:blip r:embed="rId1'||p_image_name||'" cstate="print">
+                          <a:extLst>
+                            <a:ext uri="{28A0092B-C50C-407E-A947-70E740481C1C}">
+                              <a14:useLocalDpi xmlns:a14="http://schemas.microsoft.com/office/drawing/2010/main" val="0"/>
+                            </a:ext>
+                          </a:extLst>
+                        </a:blip>
+                        <a:stretch>
+                          <a:fillRect/>
+                        </a:stretch>
+                      </pic:blipFill>
+                      <pic:spPr>
+                        <a:xfrm>
+                          <a:off x="0" y="0"/>
+                          <a:ext cx="'||p_params.size_x||'" cy="'||p_params.size_y||'"/>
+                        </a:xfrm>
+                        <a:prstGeom prst="rect">
+                          <a:avLst/>
+                        </a:prstGeom>
+                      </pic:spPr>
+                    </pic:pic>
+                  </a:graphicData>
+                </a:graphic>
+                <wp14:sizeRelH relativeFrom="margin">
+                  <wp14:pctWidth>0</wp14:pctWidth>
+                </wp14:sizeRelH>
+                <wp14:sizeRelV relativeFrom="margin">
+                  <wp14:pctHeight>0</wp14:pctHeight>
+                </wp14:sizeRelV>
+              </wp:anchor>
+            </w:drawing>
+          </w:r>
+          <w:bookmarkEnd w:id="0"/>
+        </w:p>';
+END f_add_image; 
+*/
 
 FUNCTION f_settings RETURN clob IS
 BEGIN
@@ -1197,7 +1414,7 @@ BEGIN
 	<w15:chartTrackingRefBased/>
 	<w15:docId w15:val="{CA8CD7EC-1908-42B3-9D0A-362D3CB986C6}"/>
 </w:settings>';
-END;
+END f_settings;
 
 
 FUNCTION f_styles RETURN clob IS
@@ -1745,7 +1962,7 @@ BEGIN
 </w:styles>';
 
     RETURN lcClob;
-END;
+END f_styles;
 
 
 FUNCTION f_web_settings RETURN clob IS
@@ -1755,7 +1972,7 @@ BEGIN
 	<w:optimizeForBrowser/>
 	<w:allowPNG/>
 </w:webSettings>';
-END;
+END f_web_settings;
 
 
 FUNCTION f_numbering(p_doc_id pls_integer) RETURN clob IS
@@ -1869,7 +2086,7 @@ BEGIN
     
     RETURN lcClob;
     
-END;
+END f_numbering;
 
 
 
@@ -1877,44 +2094,159 @@ END;
 PROCEDURE p_add_clob_text(p_text clob) IS
 BEGIN
     gcClob := gcClob || p_text || chr(10);
-END;
+END p_add_clob_text;
 
 
-PROCEDURE p_xml_text(p_text r_text) IS
+PROCEDURE p_xml_image(
+    p_doc_id number,
+    p_image_data r_image_data,
+    p_paragraph_yn varchar2
+    ) IS
+    
+    lcImageName varchar2(100) := grDoc(p_doc_id).images(p_image_data.image_id).image_name;
+    lcImageDesc varchar2(1000) := 'image from document';
+    lnWidth pls_integer := f_unit_convert(p_doc_id, 'image', p_image_data.width);
+    lnHeight pls_integer := f_unit_convert(p_doc_id, 'image', p_image_data.height);
+    lnRotateAngle pls_integer := f_unit_convert(p_doc_id, 'image_rotate', p_image_data.rotate_angle);
+    lcInlineAnchor varchar2(32000) := '<wp:inline distT="0" distB="0" distL="0" distR="0">';
+    lcPositionH varchar2(20) := to_char(f_unit_convert(p_doc_id, 'image', p_image_data.position_h));
+    lcPositionV varchar2(20) := to_char(f_unit_convert(p_doc_id, 'image', p_image_data.position_v));
+    
 BEGIN
-    p_add_clob_text('<w:r>');
-
-    if not p_text.font.from_paragraph then  
-        p_add_clob_text('<w:rPr>');
-        
-        p_add_clob_text('<w:rFonts w:ascii="' || p_text.font.font_name || '" w:hAnsi="' || p_text.font.font_name || '"/>');
-        p_add_clob_text('<w:sz w:val="' || (p_text.font.font_size * 2) || '"/>');
-        p_add_clob_text('<w:szCs w:val="' || (p_text.font.font_size * 2) || '"/>');
-        p_add_clob_text('<w:color w:val="' || p_text.font.color || '"/>');
-
-        if p_text.font.bold then
-            p_add_clob_text('<w:b/>');
-        end if;
-
-        if p_text.font.italic then
-            p_add_clob_text('<w:i/>');
-        end if;
-
-        if p_text.font.underline then
-            p_add_clob_text('<w:u w:val="single"/>');
-        end if;
-
-        p_add_clob_text('</w:rPr>');
-        
+    if p_paragraph_yn = 'Y' then
+        p_add_clob_text('<w:p>');
     end if;
 
-    p_add_clob_text('<w:t xml:space="preserve">' || p_text.text || '</w:t>');
+    --for anchored images
+    if p_image_data.inline_yn = 'N' then
+        lcInlineAnchor := '
+        <wp:anchor distT="0" distB="0" distL="0" distR="0" simplePos="0" relativeHeight="251656704" behindDoc="0" locked="1" layoutInCell="1" allowOverlap="0">
+            <wp:simplePos x="360000" y="0"/>
+            <wp:positionH relativeFrom="' || p_image_data.relative_from_h || '">
+                <wp:' || p_image_data.position_type_h || '>' || (CASE p_image_data.position_type_h WHEN 'align' THEN p_image_data.position_align_h ELSE lcPositionH END) || '</wp:' || p_image_data.position_type_h || '>
+            </wp:positionH>
+            <wp:positionV relativeFrom="' || p_image_data.relative_from_v || '">
+                <wp:' || p_image_data.position_type_v || '>' || (CASE p_image_data.position_type_v WHEN 'align' THEN p_image_data.position_align_v ELSE lcPositionV END) || '</wp:' || p_image_data.position_type_v || '>
+            </wp:positionV>
+        ';
+    end if;
 
-    p_add_clob_text('</w:r>');
-END;
+    p_add_clob_text('
+			<w:r>
+				<w:drawing>
+					' || lcInlineAnchor || '
+						<wp:extent cx="' || lnWidth || '" cy="' || lnHeight || '"/>
+						<wp:effectExtent 
+                            l="' || f_unit_convert(p_doc_id, 'image', p_image_data.extent_area_left) || '" 
+                            t="' || f_unit_convert(p_doc_id, 'image', p_image_data.extent_area_top) || '" 
+                            r="' || f_unit_convert(p_doc_id, 'image', p_image_data.extent_area_right) || '" 
+                            b="' || f_unit_convert(p_doc_id, 'image', p_image_data.extent_area_bottom) || '"/>
+						<wp:wrapNone/>
+						<wp:docPr id="' || p_image_data.image_id || '" name="' || lcImageName || '" descr="' || lcImageDesc || '"/>
+						<wp:cNvGraphicFramePr>
+							<a:graphicFrameLocks xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" noChangeAspect="1"/>
+						</wp:cNvGraphicFramePr>
+						<a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">
+							<a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/picture">
+								<pic:pic xmlns:pic="http://schemas.openxmlformats.org/drawingml/2006/picture">
+									<pic:nvPicPr>
+										<pic:cNvPr id="' || p_image_data.image_id || '" name="' || lcImageName || '" descr="' || lcImageDesc || '"/>
+										<pic:cNvPicPr>
+											<a:picLocks noChangeAspect="1" noChangeArrowheads="1"/>
+										</pic:cNvPicPr>
+									</pic:nvPicPr>
+									<pic:blipFill>
+										<a:blip r:embed="rId' || grDoc(p_doc_id).images(p_image_data.image_id).rel_id || '" cstate="print">
+											<a:extLst>
+												<a:ext uri="{28A0092B-C50C-407E-A947-70E740481C1C}">
+													<a14:useLocalDpi xmlns:a14="http://schemas.microsoft.com/office/drawing/2010/main" val="0"/>
+												</a:ext>
+											</a:extLst>
+										</a:blip>
+										<a:srcRect/>
+										<a:stretch>
+											<a:fillRect/>
+										</a:stretch>
+									</pic:blipFill>
+									<pic:spPr bwMode="auto">
+										<a:xfrm rot="' || lnRotateAngle || '">
+											<a:off x="0" y="0"/>
+											<a:ext cx="' || lnWidth || '" cy="' || lnHeight || '"/>
+										</a:xfrm>
+										<a:prstGeom prst="rect">
+											<a:avLst/>
+										</a:prstGeom>
+										<a:noFill/>
+										<a:ln>
+											<a:noFill/>
+										</a:ln>
+									</pic:spPr>
+								</pic:pic>
+							</a:graphicData>
+						</a:graphic>
+					</wp:' || (CASE p_image_data.inline_yn WHEN 'Y' THEN 'inline' ELSE 'anchor' END) || '>
+				</w:drawing>
+			</w:r>
+');
+
+    if p_paragraph_yn = 'Y' then
+        p_add_clob_text('</w:p>');
+    end if;
+
+END p_xml_image;
 
 
-PROCEDURE p_xml_paragraph(p_paragraph r_paragraph) IS
+PROCEDURE p_xml_text(
+    p_doc_id pls_integer, 
+    p_text r_text
+    ) IS
+BEGIN
+    if p_text.text is not null then
+        p_add_clob_text('<w:r>');
+
+        if not p_text.font.from_paragraph then  
+            p_add_clob_text('<w:rPr>');
+            
+            p_add_clob_text('<w:rFonts w:ascii="' || p_text.font.font_name || '" w:hAnsi="' || p_text.font.font_name || '"/>');
+            p_add_clob_text('<w:sz w:val="' || (p_text.font.font_size * 2) || '"/>');
+            p_add_clob_text('<w:szCs w:val="' || (p_text.font.font_size * 2) || '"/>');
+            p_add_clob_text('<w:color w:val="' || p_text.font.color || '"/>');
+
+            if p_text.font.bold then
+                p_add_clob_text('<w:b/>');
+            end if;
+
+            if p_text.font.italic then
+                p_add_clob_text('<w:i/>');
+            end if;
+
+            if p_text.font.underline then
+                p_add_clob_text('<w:u w:val="single"/>');
+            end if;
+
+            p_add_clob_text('</w:rPr>');
+            
+        end if;
+
+        p_add_clob_text('<w:t xml:space="preserve">' || p_text.text || '</w:t>');
+
+        p_add_clob_text('</w:r>');
+        
+    elsif p_text.image_data.image_id is not null then
+        p_xml_image(
+            p_doc_id => p_doc_id,
+            p_image_data => p_text.image_data,
+            p_paragraph_yn => 'N'
+        );
+    end if;
+    
+END p_xml_text;
+
+
+PROCEDURE p_xml_paragraph(
+    p_doc_id pls_integer, 
+    p_paragraph r_paragraph
+    ) IS
 BEGIN
     --start
     p_add_clob_text('<w:p>');
@@ -1944,36 +2276,40 @@ BEGIN
     --texts
     if p_paragraph.texts is not null then
         FOR t IN p_paragraph.texts.first .. p_paragraph.texts.last LOOP
-            p_xml_text(p_paragraph.texts(t));
+            p_xml_text(p_doc_id, p_paragraph.texts(t));
         END LOOP;
     end if;
     
     --end
     p_add_clob_text('</w:p>');
-END;
+END p_xml_paragraph;
 
-PROCEDURE p_xml_table(p_table r_table) IS
+PROCEDURE p_xml_table(
+    p_doc_id pls_integer, 
+    p_table r_table
+    ) IS
     
     lnWidth pls_integer := 0;
     lcClobTop clob;
     lcClobBottom clob;
     lcClobLeft clob;
     lcClobRight clob;
-    
-    FUNCTION f_border_text(v pls_integer, s pls_integer, p_which varchar2, p_border r_border) RETURN clob IS
-        lcClob clob := '';
+    lcClobInsideH clob;
+    lcClobInsideV clob;
+
+    FUNCTION f_border_text(
+        p_which varchar2, 
+        p_border r_border) RETURN clob IS
+        lcClob clob;
     BEGIN
-        if  p_border.width is not null then
-            
+        if p_border.border_type is not null then
             lcClob := '<w:' || p_which || ' ';
             
-            lcClob := lcClob || 'w:val="' || nvl(p_table.cells(v || ',' || s).border_top.border_type, 'single') || '" ';
+            lcClob := lcClob || 'w:val="' || p_border.border_type || '" ';
 
-            if p_border.width is not null then
-                lcClob := lcClob || 'w:sz="' || (p_table.cells(v || ',' || s).border_top.width * 8) || '" ';
-            end if;
+            lcClob := lcClob || 'w:sz="' || ((CASE WHEN lower(p_border.border_type) = 'none' THEN 0 ELSE nvl(p_border.width, 0.5) END) * 8) || '" ';
 
-            lcClob := lcClob || 'w:space="0" w:color="' || nvl(p_table.cells(v || ',' || s).border_top.color, 'auto') || '"/>';
+            lcClob := lcClob || 'w:space="0" w:color="' || nvl(p_border.color, 'auto') || '"/>';
         end if;
         
         RETURN lcClob;
@@ -1985,16 +2321,36 @@ BEGIN
     <w:tblPr>
         <w:tblStyle w:val="TableGrid"/>');
         
-        --table width
-        if p_table.width is null then
-            p_add_clob_text('<w:tblW w:w="0" w:type="auto"/>');
-        else
-            p_add_clob_text('<w:tblW w:w="' || p_table.width || '" w:type="dxa"/>');
-        end if;
+    --table width
+    if p_table.width is null then
+        p_add_clob_text('<w:tblW w:w="0" w:type="auto"/>');
+    else
+        p_add_clob_text('<w:tblW w:w="' || p_table.width || '" w:type="dxa"/>');
+    end if;
         
+    --table borders
+    lcClobTop := f_border_text('top', p_table.border_top);
+    lcClobBottom := f_border_text('bottom', p_table.border_bottom);
+    lcClobLeft := f_border_text('left', p_table.border_left);
+    lcClobRight := f_border_text('right', p_table.border_right);
+    lcClobInsideH := f_border_text('insideH', p_table.border_inside_h);
+    lcClobInsideV := f_border_text('insideV', p_table.border_inside_v);
+
+    if 
+        lcClobTop is not null or 
+        lcClobBottom is not null or 
+        lcClobLeft is not null or 
+        lcClobRight is not null or
+        lcClobInsideH is not null or
+        lcClobInsideV is not null
+        then
+        p_add_clob_text('        <w:tblBorders>');
+        p_add_clob_text(lcClobTop || lcClobBottom || lcClobLeft || lcClobRight || lcClobInsideH || lcClobInsideV);
+        p_add_clob_text('        </w:tblBorders>');
+    end if;
 
         
-        p_add_clob_text('<w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>
+    p_add_clob_text('<w:tblLook w:val="04A0" w:firstRow="1" w:lastRow="0" w:firstColumn="1" w:lastColumn="0" w:noHBand="0" w:noVBand="1"/>
     </w:tblPr>');
 
     --cells
@@ -2033,11 +2389,11 @@ BEGIN
                 end if;
                 
                 --borders
-                lcClobTop := f_border_text(v, s, 'top', p_table.cells(v || ',' || s).border_top);
-                lcClobBottom := f_border_text(v, s, 'bottom', p_table.cells(v || ',' || s).border_bottom);
-                lcClobLeft := f_border_text(v, s, 'left', p_table.cells(v || ',' || s).border_left);
-                lcClobRight := f_border_text(v, s, 'right', p_table.cells(v || ',' || s).border_right);
-                
+                lcClobTop := f_border_text('top', p_table.cells(v || ',' || s).border_top);
+                lcClobBottom := f_border_text('bottom', p_table.cells(v || ',' || s).border_bottom);
+                lcClobLeft := f_border_text('left', p_table.cells(v || ',' || s).border_left);
+                lcClobRight := f_border_text('right', p_table.cells(v || ',' || s).border_right);
+
                 if lcClobTop is not null or lcClobBottom is not null or lcClobLeft is not null or lcClobRight is not null then
                     p_add_clob_text('        <w:tcBorders>');
                     p_add_clob_text(lcClobTop || lcClobBottom || lcClobLeft || lcClobRight);
@@ -2053,7 +2409,7 @@ BEGIN
                 p_add_clob_text('        </w:tcPr>');
                 
                 --add paragraph/text
-                p_xml_paragraph(p_table.cells(v || ',' || s).paragraph);
+                p_xml_paragraph(p_doc_id, p_table.cells(v || ',' || s).paragraph);
                 
                 p_add_clob_text('        </w:tc>');
             end if;
@@ -2063,7 +2419,7 @@ BEGIN
 
     --konec tabele
     p_add_clob_text('</w:tbl>');
-END;
+END p_xml_table;
 
 PROCEDURE p_xml_page_break(p_break r_break) IS
 BEGIN
@@ -2072,7 +2428,7 @@ BEGIN
             <w:br w:type="page"/>
         </w:r>
     </w:p>');
-END;
+END p_xml_page_break;
 
 PROCEDURE p_xml_section_break(
     p_doc_id number,
@@ -2105,7 +2461,10 @@ BEGIN
 			</w:p>');
     end if;
 
-END;
+END p_xml_section_break;
+
+
+
 
 
 PROCEDURE p_container_content(
@@ -2118,13 +2477,13 @@ PROCEDURE p_container_content(
     
 BEGIN
 
-	FOR t IN p_container.elements.first .. p_container.elements.last LOOP
+	FOR t IN 1 .. p_container.elements.count LOOP
         
         if p_container.elements(t).element_type = 'PARAGRAPH' then
-            p_xml_paragraph(p_container.elements(t).paragraph);
+            p_xml_paragraph(p_doc_id, p_container.elements(t).paragraph);
             
         elsif p_container.elements(t).element_type = 'TABLE' then
-            p_xml_table(p_container.elements(t).table_data);
+            p_xml_table(p_doc_id, p_container.elements(t).table_data);
             
         elsif p_container.elements(t).element_type = 'BREAK' then
         
@@ -2135,7 +2494,13 @@ BEGIN
                 lrPage := p_container.elements(t).break_data.page;
                 lcSectionType := p_container.elements(t).break_data.section_type;
             end if;
-            
+
+        elsif p_container.elements(t).element_type = 'IMAGE' then
+            p_xml_image(
+                p_doc_id => p_doc_id,
+                p_image_data => p_container.elements(t).image_data,
+                p_paragraph_yn => 'Y'
+            );
         end if;
         
 	END LOOP;
@@ -2157,7 +2522,7 @@ BEGIN
     p_add_clob_text('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:document xmlns:wpc="http://schemas.microsoft.com/office/word/2010/wordprocessingCanvas" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:wp14="http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:w10="urn:schemas-microsoft-com:office:word" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml" xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup" xmlns:wpi="http://schemas.microsoft.com/office/word/2010/wordprocessingInk" xmlns:wne="http://schemas.microsoft.com/office/word/2006/wordml" xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape" mc:Ignorable="w14 w15 wp14">
 	<w:body>');
-	
+
 	--document content - first container is document
 	p_container_content(p_doc_id, grDoc(p_doc_id).containers(1));
     
@@ -2194,12 +2559,12 @@ FUNCTION f_make_document(
     
     lbWord blob;
     lcClob clob;
-    --lbSlika blob;
+    lcClobHeaderRels clob;
     
 BEGIN
     dbms_lob.createtemporary(lbWord, true);
 
-    --deli dokumenta
+    --main document files
     p_add_document_to_zip(lbWord, '[Content_Types].xml', f_content_types(p_doc_id));
     p_add_document_to_zip(lbWord, '_rels/.rels', f_rels);
     p_add_document_to_zip(lbWord, 'docProps/app.xml', f_app);
@@ -2212,22 +2577,41 @@ BEGIN
     p_add_document_to_zip(lbWord, 'word/webSettings.xml', f_web_settings);
     p_add_document_to_zip(lbWord, 'word/document.xml', f_document(p_doc_id) );
     
+    --additional documents, if used
+    
+    --numbering
     lcClob := f_numbering(p_doc_id);
     if lcClob is not null then
         p_add_document_to_zip(lbWord, 'word/numbering.xml', lcClob);
     end if;
     
-    --header-i
-    FOR t IN grDoc(p_doc_id).containers.first .. grDoc(p_doc_id).containers.last LOOP
+    --headers and footers (relation XML documents too)
+    if grDoc(p_doc_id).images.count > 0 then
+        lcClobHeaderRels := f_container_xml_rels(p_doc_id);
+    end if;
+    
+    FOR t IN 1 .. grDoc(p_doc_id).containers.count LOOP
         if grDoc(p_doc_id).containers(t).container_type = 'HEADER' then
             lcClob := f_header(p_doc_id, grDoc(p_doc_id).containers(t));
             p_add_document_to_zip(lbWord, 'word/header' || grDoc(p_doc_id).containers(t).rel_id || '.xml', lcClob);
+            
+            if grDoc(p_doc_id).images.count > 0 then
+                p_add_document_to_zip(lbWord, 'word/_rels/header' || grDoc(p_doc_id).containers(t).rel_id || '.xml.rels', lcClobHeaderRels);
+            end if;
         elsif grDoc(p_doc_id).containers(t).container_type = 'FOOTER' then
             lcClob := f_header(p_doc_id, grDoc(p_doc_id).containers(t));
             p_add_document_to_zip(lbWord, 'word/footer' || grDoc(p_doc_id).containers(t).rel_id || '.xml', lcClob);
+            
+            if grDoc(p_doc_id).images.count > 0 then
+                p_add_document_to_zip(lbWord, 'word/_rels/footer' || grDoc(p_doc_id).containers(t).rel_id || '.xml.rels', lcClobHeaderRels);
+            end if;
         end if;
     END LOOP;
-    
+
+    --images
+    FOR t IN 1 .. grDoc(p_doc_id).images.count LOOP
+        p_add_document_to_zip(lbWord, 'word/media/' || grDoc(p_doc_id).images(t).image_name, grDoc(p_doc_id).images(t).image_file);
+    END LOOP;
 
     finish_zip(lbWord);
 

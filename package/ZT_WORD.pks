@@ -11,6 +11,7 @@ CREATE OR REPLACE PACKAGE zt_word AS
     ---------  ----------  ---------------  ------------------------------------
     0.1        28/10/2016  Zoran Tica       1. Created this package.
     1.0        15/10/2017  Zoran Tica       2. First public version.
+    2.0        30/03/2020  Zoran Tica       3. Images; table borders
 
 
     ----------------------------------------------------------------------------
@@ -53,9 +54,10 @@ TYPE r_font IS RECORD (
 
 TYPE r_text IS RECORD (
     text varchar2(32000),
-    font r_font
+    font r_font,
+    image_data zt_word.r_image_data
     );
-TYPE t_text IS TABLE OF r_text;    
+TYPE t_text IS TABLE OF r_text;
 
 TYPE r_paragraph IS RECORD (
     alignment_h varchar2(10),
@@ -91,7 +93,13 @@ TYPE r_table IS RECORD (
     rows_num pls_integer,
     columns_num pls_integer,
     column_width t_table_number,
-    cells t_table_cells
+    cells t_table_cells,
+    border_top r_border,
+    border_bottom r_border,
+    border_left r_border,
+    border_right r_border,
+    border_inside_h r_border,
+    border_inside_v r_border
     );
 
 TYPE r_list IS RECORD (
@@ -121,11 +129,40 @@ TYPE r_break IS RECORD (
     section_type varchar2(20),
     page r_page);
 
+
+TYPE r_image_data IS RECORD (
+    image_id pls_integer,
+    width number,
+    height number,
+    rotate_angle number,
+    extent_area_left number,
+    extent_area_top number,
+    extent_area_right number,
+    extent_area_bottom number,
+    inline_yn varchar2(1),
+    relative_from_h varchar2(10),
+    position_type_h varchar2(10),
+    position_align_h varchar2(10),
+    position_h number,
+    relative_from_v varchar2(10),
+    position_type_v varchar2(10),
+    position_align_v varchar2(10),
+    position_v number
+    );
+TYPE r_image IS RECORD (
+    image_name varchar2(50),
+    image_file blob,
+    rel_id pls_integer
+    );
+TYPE t_images IS TABLE OF r_image;
+
+
 TYPE r_element IS RECORD (
     element_type varchar2(20),
     paragraph r_paragraph,
     table_data r_table,
-    break_data r_break
+    break_data r_break,
+    image_data r_image_data
     );
 TYPE t_elements IS TABLE OF r_element;
 
@@ -143,6 +180,7 @@ TYPE r_document IS RECORD (
     unit varchar2(20),
     rels_id pls_integer,
     containers t_containers,
+    images t_images,
     lists t_list);
 TYPE t_documents IS TABLE OF r_document;
 
@@ -186,8 +224,10 @@ PROCEDURE p_table_cell(
     p_border_left r_border default null,
     p_border_right r_border default null,
     p_background_color varchar2 default null, --RRGGBB hex format
-    p_text varchar2 DEFAULT null,
-    p_font r_font DEFAULT null);
+    p_text varchar2 default null,
+    p_font r_font default null,
+    p_image_data r_image_data default null
+    );
 
 PROCEDURE p_table_merge_cells(
     p_doc_id number,
@@ -202,7 +242,13 @@ FUNCTION f_new_table(
     p_rows pls_integer,
     p_columns pls_integer,
     p_table_width pls_integer default null,
-    p_columns_width varchar2 default null  --comma separated string
+    p_columns_width varchar2 default null,  --comma separated string
+    p_border_top r_border default null,
+    p_border_bottom r_border default null,
+    p_border_left r_border default null,
+    p_border_right r_border default null,
+    p_border_inside_h r_border default null,
+    p_border_inside_v r_border default null
     ) RETURN pls_integer;
 
 FUNCTION f_new_numbering(
@@ -220,8 +266,46 @@ FUNCTION f_new_section_break(
     p_doc_id number,
     p_section_type varchar2,  --'nextPage', 'oddPage', 'evenPage' 
     p_page_template varchar2 default null,
-    p_page r_page default null) RETURN pls_integer;
-    
+    p_page r_page default null
+    ) RETURN pls_integer;
+
+
+FUNCTION f_image_data(
+    p_image_id pls_integer,
+    p_width number default 0,
+    p_height number default 0,
+    p_rotate_angle number default 0,
+    p_extent_area_left number default 0,
+    p_extent_area_top number default 0,
+    p_extent_area_right number default 0,
+    p_extent_area_bottom number default 0,
+    p_inline_yn varchar2 default 'Y',
+    p_relative_from_h varchar2 default 'page',  --page, margin, column
+    p_position_type_h varchar2 default 'align',  --align, posOffset
+    p_position_align_h varchar2 default 'center',  --left, right, center
+    p_position_h number default 0,  --offset from object
+    p_relative_from_v varchar2 default 'page',
+    p_position_type_v varchar2 default 'align',
+    p_position_align_v varchar2 default 'center',  --top, bottom, center
+    p_position_v number default 0
+    ) RETURN r_image_data;
+
+/*funtion adds image to document and returns image ID - it doesn't insert image instance on pages*/
+FUNCTION f_add_image_to_document(
+    p_doc_id number,
+    p_filename varchar2,
+    p_image blob
+    ) RETURN pls_integer;
+
+/*procedure inserts image instance on document pages*/
+FUNCTION f_new_image_instance(
+    p_doc_id number,
+    p_container_id pls_integer default null,
+    p_image_data r_image_data
+    ) RETURN pls_integer;
+
+
+
 
 PROCEDURE p_set_default_page(
     p_doc_id number,
@@ -229,7 +313,6 @@ PROCEDURE p_set_default_page(
 
 FUNCTION f_get_default_page(
     p_doc_id number) RETURN r_page;
-
 
 FUNCTION f_get_page(
     p_doc_id number default null,
@@ -247,6 +330,7 @@ FUNCTION f_get_page(
     ) RETURN r_page;
     
 
+
 FUNCTION f_font(
     p_from_paragraph boolean default false,
     p_font_name varchar2 default 'Calibri',
@@ -261,8 +345,10 @@ PROCEDURE p_add_text(
     p_doc_id number,
     p_container_id pls_integer default null,
     p_paragraph_id number,
-    p_text varchar2,
-    p_font r_font default null);
+    p_text varchar2 default null,
+    p_font r_font default null,
+    p_image_data r_image_data default null
+    );
 
 
 FUNCTION f_new_container(
@@ -277,7 +363,7 @@ FUNCTION f_make_document(
 
 
 --mostly for testing purposes
---procedure saves a document (or some other blob value) into a file 
+--procedure saves a document (or some other blob) into a file 
 PROCEDURE p_save_file(
     p_document blob,
     p_file_name varchar2 default 'my_document.docx',
