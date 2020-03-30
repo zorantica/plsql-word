@@ -5,6 +5,7 @@ It requires no additional resources and it is developed in pure PL/SQL.
 
 ## Changelog
 1.0 - Initial Release
+2.0 - Images; table borders
 
 ## Install
 - download 2 script files from "package" directory 
@@ -17,7 +18,7 @@ New Package ZT_WORD is created in database schema.
 ## How to use
 Procedure and Function descriptions with input and output parameters and examples are located in package definition script.
 
-Additional script with examples is available in "examples" directory
+Additional script with examples is available in "examples" directory. Strongly recommended to try it first.
 
 ## Demo Application
 *in development*
