@@ -5,6 +5,7 @@ It requires no additional resources and it is developed in pure PL/SQL.
 
 ## Changelog
 1.0 - Initial Release
+
 2.0 - Images; table borders
 
 ## Install
