@@ -130,7 +130,8 @@ END;
 FUNCTION f_new_document(
     p_author varchar2 default null,
     p_default_page r_page default null,
-    p_unit varchar2 default 'cm') RETURN pls_integer IS
+    p_unit varchar2 default 'cm',
+    p_lang varchar2 default 'en-US') RETURN pls_integer IS
     
     lnID pls_integer;
     lnID2 pls_integer;
@@ -151,6 +152,7 @@ BEGIN
     end if;
 
     grDoc(lnID).unit := p_unit;
+    grDoc(lnID).lang := p_lang;
     
     --containers init - first one is document
     grDoc(lnID).containers := t_containers();
@@ -1366,7 +1368,7 @@ RETURN '<w:p w:rsidR="009B1A39" w:rsidRDefault="0051609D">
 END f_add_image; 
 */
 
-FUNCTION f_settings RETURN clob IS
+FUNCTION f_settings(p_doc_id number) RETURN clob IS
 BEGIN
     RETURN '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <w:settings xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:m="http://schemas.openxmlformats.org/officeDocument/2006/math" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w10="urn:schemas-microsoft-com:office:word" xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml" xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml" xmlns:sl="http://schemas.openxmlformats.org/schemaLibrary/2006/main" mc:Ignorable="w14 w15">
@@ -1401,7 +1403,7 @@ BEGIN
 		<m:intLim m:val="subSup"/>
 		<m:naryLim m:val="undOvr"/>
 	</m:mathPr>
-	<w:themeFontLang w:val="sl-SI"/>
+	<w:themeFontLang w:val="' || grDoc(p_doc_id).lang || '"/>
 	<w:clrSchemeMapping w:bg1="light1" w:t1="dark1" w:bg2="light2" w:t2="dark2" w:accent1="accent1" w:accent2="accent2" w:accent3="accent3" w:accent4="accent4" w:accent5="accent5" w:accent6="accent6" w:hyperlink="hyperlink" w:followedHyperlink="followedHyperlink"/>
 	<w:shapeDefaults>
 		<o:shapedefaults v:ext="edit" spidmax="1026"/>
@@ -1417,7 +1419,7 @@ BEGIN
 END f_settings;
 
 
-FUNCTION f_styles RETURN clob IS
+FUNCTION f_styles(p_doc_id number) RETURN clob IS
     lcClob clob;
 BEGIN
     lcClob := '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
@@ -1428,7 +1430,7 @@ BEGIN
 				<w:rFonts w:asciiTheme="minorHAnsi" w:eastAsiaTheme="minorHAnsi" w:hAnsiTheme="minorHAnsi" w:cstheme="minorBidi"/>
 				<w:sz w:val="22"/>
 				<w:szCs w:val="22"/>
-				<w:lang w:val="sl-SI" w:eastAsia="en-US" w:bidi="ar-SA"/>
+				<w:lang w:val="' || grDoc(p_doc_id).lang || '" w:eastAsia="en-US" w:bidi="ar-SA"/>
 			</w:rPr>
 		</w:rPrDefault>
 		<w:pPrDefault>
@@ -2572,8 +2574,8 @@ BEGIN
     p_add_document_to_zip(lbWord, 'word/_rels/document.xml.rels', f_document_xml_rels(p_doc_id) );
     p_add_document_to_zip(lbWord, 'word/theme/theme1.xml', f_theme);
     p_add_document_to_zip(lbWord, 'word/fontTable.xml', f_font_table);
-    p_add_document_to_zip(lbWord, 'word/settings.xml', f_settings);
-    p_add_document_to_zip(lbWord, 'word/styles.xml', f_styles);
+    p_add_document_to_zip(lbWord, 'word/settings.xml', f_settings(p_doc_id));
+    p_add_document_to_zip(lbWord, 'word/styles.xml', f_styles(p_doc_id));
     p_add_document_to_zip(lbWord, 'word/webSettings.xml', f_web_settings);
     p_add_document_to_zip(lbWord, 'word/document.xml', f_document(p_doc_id) );
     

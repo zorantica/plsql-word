@@ -178,6 +178,7 @@ TYPE r_document IS RECORD (
     create_date date,
     default_page r_page,
     unit varchar2(20),
+    lang varchar2(20),
     rels_id pls_integer,
     containers t_containers,
     images t_images,
@@ -191,7 +192,8 @@ TYPE t_documents IS TABLE OF r_document;
 FUNCTION f_new_document(
     p_author varchar2 default null,
     p_default_page r_page default null,
-    p_unit varchar2 default 'cm') RETURN pls_integer;
+    p_unit varchar2 default 'cm',
+    p_lang varchar2 default 'en-US') RETURN pls_integer;
 
 FUNCTION f_new_paragraph(
     p_doc_id number,
