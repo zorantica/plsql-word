@@ -76,7 +76,9 @@ BEGIN
 
     --first we create a new document and get a reference ID
     --function argument is document author name 
-    lnDok := ZT_WORD.f_new_document('Alan Ford');
+    lnDok := ZT_WORD.f_new_document(
+        p_author => 'Alan Ford'
+    );
 
 
     --if we want to have a header or footer on first page and all following pages (until section break)

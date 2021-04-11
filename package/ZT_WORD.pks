@@ -12,6 +12,7 @@ CREATE OR REPLACE PACKAGE zt_word AS
     0.1        28/10/2016  Zoran Tica       1. Created this package.
     1.0        15/10/2017  Zoran Tica       2. First public version.
     2.0        30/03/2020  Zoran Tica       3. Images; table borders
+    2.1        11/04/2021  Javier Meza      4. Default spelling and gramar language (f_new_document, parameter p_lang)
 
 
     ----------------------------------------------------------------------------
