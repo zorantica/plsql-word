@@ -12,6 +12,7 @@ CREATE OR REPLACE PACKAGE zt_word AS
     0.1        28/10/2016  Zoran Tica       1. Created this package.
     1.0        15/10/2017  Zoran Tica       2. First public version.
     2.0        30/03/2020  Zoran Tica       3. Images; table borders
+    2.1        11/04/2021  Javier Meza      4. Default spelling and gramar language (f_new_document, parameter p_lang)
 
 
     ----------------------------------------------------------------------------
@@ -178,6 +179,7 @@ TYPE r_document IS RECORD (
     create_date date,
     default_page r_page,
     unit varchar2(20),
+    lang varchar2(20),
     rels_id pls_integer,
     containers t_containers,
     images t_images,
@@ -191,7 +193,8 @@ TYPE t_documents IS TABLE OF r_document;
 FUNCTION f_new_document(
     p_author varchar2 default null,
     p_default_page r_page default null,
-    p_unit varchar2 default 'cm') RETURN pls_integer;
+    p_unit varchar2 default 'cm',
+    p_lang varchar2 default 'en-US') RETURN pls_integer;
 
 FUNCTION f_new_paragraph(
     p_doc_id number,
