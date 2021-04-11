@@ -16,7 +16,7 @@ DECLARE
     lrImages t_images;
 
     lnDok pls_integer;
-    lnParagraph pls_integer;
+    lnParagraph pls_integer; 
     lnNum pls_integer;
     lnBreak pls_integer;
     lnHeader pls_integer;
@@ -373,7 +373,7 @@ BEGIN
             p_row => lnCounter, 
             p_column => 4, 
             p_alignment_h => 'RIGHT', 
-            p_text => to_char(t.price, 'FM999G990D00') || '€',
+            p_text => to_char(t.price, 'FM999G990D00') || 'EUR',
             p_border_top => ZT_WORD.f_border(p_border_type => 'nil'),
             p_border_left => ZT_WORD.f_border(p_border_type => 'nil'),
             p_border_right => ZT_WORD.f_border(p_border_type => 'nil'),
@@ -386,7 +386,7 @@ BEGIN
             p_row => lnCounter, 
             p_column => 5, 
             p_alignment_h => 'RIGHT', 
-            p_text => to_char(t.q * t.price, 'FM999G990D00') || '€',
+            p_text => to_char(t.q * t.price, 'FM999G990D00') || 'EUR',
             p_border_top => ZT_WORD.f_border(p_border_type => 'nil'),
             p_border_left => ZT_WORD.f_border(p_border_type => 'nil'),
             p_border_right => ZT_WORD.f_border(p_border_type => 'nil'),
@@ -414,7 +414,7 @@ BEGIN
         p_column => 5, 
         p_alignment_h => 'RIGHT', 
         p_background_color => 'CCCCCC',
-        p_text => to_char(lnSum, 'FM999G990D00') || '€');
+        p_text => to_char(lnSum, 'FM999G990D00') || 'EUR');
     
 
     --new page with image
