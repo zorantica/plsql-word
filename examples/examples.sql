@@ -1,3 +1,5 @@
+SET DEFINE OFF;
+
 DECLARE
     CURSOR c_bill IS
         SELECT 'Bread' as name, 'pcs' as unit, 2 as q, 1.2 as price FROM dual UNION ALL
@@ -153,7 +155,7 @@ BEGIN
     --we reference to paragraph with document ID and paragraph ID together
     lnParagraph := ZT_WORD.f_new_paragraph(
         p_doc_id => lnDok,
-        p_text => 'This is an example '
+        p_text => 'This is &&& an example '
             );
 
     ZT_WORD.p_add_text(
@@ -673,7 +675,7 @@ BEGIN
     --for testing purposes we save the document in directory
     ZT_WORD.p_save_file(
         p_document => lbDokument,
-        p_folder => 'E_SHARED',
+        p_folder => 'D_SHARED',
         p_file_name => 'ZT_WORD example.docx');
     
 END;

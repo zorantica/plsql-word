@@ -2230,7 +2230,7 @@ BEGIN
             
         end if;
 
-        p_add_clob_text('<w:t xml:space="preserve">' || p_text.text || '</w:t>');
+        p_add_clob_text('<w:t xml:space="preserve">' || dbms_xmlgen.convert(p_text.text) || '</w:t>');
 
         p_add_clob_text('</w:r>');
         
