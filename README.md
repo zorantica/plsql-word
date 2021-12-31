@@ -17,9 +17,7 @@ It requires no additional resources and it is developed in pure PL/SQL.
 New Package ZT_WORD is created in database schema.
 
 ## How to use
-Procedure and Function descriptions with input and output parameters and examples are located in package definition script.
-
-Additional script with examples is available in "examples" directory. Strongly recommended to try it first.
+A script with examples is available in "examples" directory. Strongly recommended to try it first.
 
 ## Demo Application
 *in development*
