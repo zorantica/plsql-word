@@ -523,6 +523,7 @@ BEGIN
         p_doc_id => lnDok, 
         p_type => 'HEADER');
 
+    /*
     lnImage := ZT_WORD.f_new_image_instance(
         p_doc_id => lnDok,
         p_container_id => lnHeader,
@@ -530,6 +531,19 @@ BEGIN
             p_image_id => lrImages(4),
             p_width => 4,
             p_height => 1.4
+        )
+    );
+    */
+
+    lnImage := ZT_WORD.f_new_image_instance(
+        p_doc_id => lnDok,
+        p_container_id => lnHeader,
+        p_image_data => ZT_WORD.f_image_data(
+            p_image_id => lrImages(4),
+            p_width => 4,
+            p_height => 1.4,
+            p_inline_yn => 'N',
+            p_position_type_v => 'posOffset'
         )
     );
 
@@ -666,7 +680,79 @@ BEGIN
         )
     );
     
+
+    --new page with table in footer - useful for memorandum templates
+    --header is already created (ZT-TECH logo)
+    lnFooter := ZT_WORD.f_new_container(
+        p_doc_id => lnDok, 
+        p_type => 'FOOTER');
+
+    lrPage := ZT_WORD.f_get_default_page(p_doc_id => lnDok);
+    lrPage.header_ref := lnHeader;
+    lrPage.footer_ref := lnFooter;
+    lnBreak := ZT_WORD.f_new_section_break(
+        p_doc_id => lnDok,
+        p_section_type => 'nextPage',
+        p_page => lrPage);    
+
+    lnParagraph := ZT_WORD.f_new_paragraph(
+        p_doc_id => lnDok,
+        p_text => 'There is a table in the footer.'
+    );
+
+
+    --add a table in footer
+    lnTable := ZT_WORD.f_new_table(
+        p_doc_id => lnDok, 
+        p_container_id => lnFooter,
+        p_rows => 2,
+        p_columns => 2,
+        p_columns_width => '3000, 4000, 3500'
+    );
     
+    ZT_WORD.p_table_cell(
+        p_doc_id => lnDok, 
+        p_container_id => lnFooter,
+        p_table_id => lnTable, 
+        p_row => 1, 
+        p_column => 1,
+        p_alignment_h => 'LEFT',
+        p_alignment_v => 'BOTTOM',
+        p_text => 'Top left cell'
+    );
+
+    ZT_WORD.p_table_cell(
+        p_doc_id => lnDok, 
+        p_container_id => lnFooter,
+        p_table_id => lnTable, 
+        p_row => 1, 
+        p_column => 2,
+        p_alignment_h => 'LEFT',
+        p_alignment_v => 'BOTTOM',
+        p_text => 'Top right cell'
+    );
+
+    ZT_WORD.p_table_cell(
+        p_doc_id => lnDok, 
+        p_container_id => lnFooter,
+        p_table_id => lnTable, 
+        p_row => 2, 
+        p_column => 1,
+        p_alignment_h => 'LEFT',
+        p_alignment_v => 'BOTTOM',
+        p_text => 'Bottom left cell'
+    );
+
+    ZT_WORD.p_table_cell(
+        p_doc_id => lnDok, 
+        p_container_id => lnFooter,
+        p_table_id => lnTable, 
+        p_row => 2, 
+        p_column => 2,
+        p_alignment_h => 'LEFT',
+        p_alignment_v => 'BOTTOM',
+        p_text => 'Bottom right cell'
+    );    
     
     --at the end we finish the document
     --function returns the document as blob variable

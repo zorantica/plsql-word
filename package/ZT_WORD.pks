@@ -230,16 +230,19 @@ PROCEDURE p_table_cell(
     p_background_color varchar2 default null, --RRGGBB hex format
     p_text varchar2 default null,
     p_font r_font default null,
-    p_image_data r_image_data default null
+    p_image_data r_image_data default null,
+    p_container_id pls_integer default null
     );
-
+        
 PROCEDURE p_table_merge_cells(
     p_doc_id number,
     p_table_id pls_integer,
     p_from_row pls_integer,
     p_from_column pls_integer,
     p_to_row pls_integer,
-    p_to_column pls_integer);
+    p_to_column pls_integer,
+    p_container_id pls_integer default null
+    );
 
 FUNCTION f_new_table(
     p_doc_id number,
@@ -252,7 +255,8 @@ FUNCTION f_new_table(
     p_border_left r_border default null,
     p_border_right r_border default null,
     p_border_inside_h r_border default null,
-    p_border_inside_v r_border default null
+    p_border_inside_v r_border default null,
+    p_container_id pls_integer default null
     ) RETURN pls_integer;
 
 FUNCTION f_new_numbering(

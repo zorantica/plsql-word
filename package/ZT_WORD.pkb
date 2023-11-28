@@ -325,59 +325,63 @@ PROCEDURE p_table_cell(
     p_background_color varchar2 default null,
     p_text varchar2 default null,
     p_font r_font default null,
-    p_image_data r_image_data default null
+    p_image_data r_image_data default null,
+    p_container_id pls_integer default null
     ) IS
     
     lnID pls_integer;
+    lnContainerID pls_integer := nvl(p_container_id, 1);
     
 BEGIN
     --texts init
-    if grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts is null then
-        grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts := t_text();
+    if grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts is null then
+        grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts := t_text();
     end if;
 
     --alignment
-    grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.alignment_h := p_alignment_h;
-    grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).alignment_v := p_alignment_v;
+    grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.alignment_h := p_alignment_h;
+    grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).alignment_v := p_alignment_v;
 
     --background color
-    grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).background_color := p_background_color;
+    grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).background_color := p_background_color;
 
     --borders
-    grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).border_top := p_border_top;
-    grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).border_bottom := p_border_bottom;
-    grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).border_left := p_border_left;
-    grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).border_right := p_border_right;
+    grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).border_top := p_border_top;
+    grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).border_bottom := p_border_bottom;
+    grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).border_left := p_border_left;
+    grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).border_right := p_border_right;
     
     --text
     if p_text is not null or p_image_data.image_id is not null then
-        grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts.extend;
-        lnID := grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts.count;
+        grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts.extend;
+        lnID := grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts.count;
         
-        grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).text := p_text;
-        grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).font := p_font;
+        grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).text := p_text;
+        grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).font := p_font;
 
-        grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).image_data := p_image_data;
+        grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).image_data := p_image_data;
     end if;
-END;
+END p_table_cell;
 
 
 PROCEDURE p_table_column_width(
     p_doc_id pls_integer,
     p_table_id pls_integer,
-    p_width varchar2) IS
+    p_width varchar2,
+    p_container_id pls_integer default null) IS
     
     lcSirina varchar2(10000) := replace(p_width, ' ', null);
     lrVrednosti t_table_vc2;
+    lnContainerID pls_integer := nvl(p_container_id, 1);
     
 BEGIN
-    grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.column_width := t_table_number();
+    grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.column_width := t_table_number();
 
     lrVrednosti := f_explode(lcSirina, ',');
     
     FOR t IN 1 .. lrVrednosti.count LOOP
-        grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.column_width.extend;
-        grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.column_width(t) := to_number(lrVrednosti(t));
+        grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.column_width.extend;
+        grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.column_width(t) := to_number(lrVrednosti(t));
     END LOOP;
 
 END;
@@ -389,27 +393,30 @@ PROCEDURE p_table_merge_cells(
     p_from_row pls_integer,
     p_from_column pls_integer,
     p_to_row pls_integer,
-    p_to_column pls_integer) IS
+    p_to_column pls_integer,
+    p_container_id pls_integer default null) IS
+
+    lnContainerID pls_integer := nvl(p_container_id, 1);
     
 BEGIN
     --if vertical merge exists -> mark cells
     if p_from_row <> p_to_row then
         --mark first row
-        grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(p_from_row || ',' || p_from_column).merge_v := '<w:vMerge w:val="restart"/>';
+        grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_from_row || ',' || p_from_column).merge_v := '<w:vMerge w:val="restart"/>';
         
         --mark other rows till last row
         FOR t IN (p_from_row + 1) .. p_to_row LOOP
-            grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(t || ',' || p_from_column).merge_v := '<w:vMerge/>';
+            grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(t || ',' || p_from_column).merge_v := '<w:vMerge/>';
         END LOOP;
     end if;
     
-    --if horisontal merge exists -> mark cells
+    --if horizontal merge exists -> mark cells
     if p_from_column <> p_to_column then
         --for each row merge cells -> mark gridSpan number; other columns mark with -1 (ignore in XML document)
         FOR t IN p_from_row .. p_to_row LOOP
-            grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(t || ',' || p_from_column).merge_h := p_to_column - p_from_column + 1;
+            grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(t || ',' || p_from_column).merge_h := p_to_column - p_from_column + 1;
             FOR p IN (p_from_column + 1) .. p_to_column LOOP
-                grDoc(p_doc_id).containers(1).elements(p_table_id).table_data.cells(t || ',' || p).merge_h := -1;
+                grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(t || ',' || p).merge_h := -1;
             END LOOP;
         END LOOP;
     end if;
@@ -426,34 +433,41 @@ FUNCTION f_new_table(
     p_border_left r_border default null,
     p_border_right r_border default null,
     p_border_inside_h r_border default null,
-    p_border_inside_v r_border default null
+    p_border_inside_v r_border default null,
+    p_container_id pls_integer default null
     ) RETURN pls_integer IS
 
     lnID pls_integer;
+    lnContainerID pls_integer := nvl(p_container_id, 1);
     
 BEGIN
-    grDoc(p_doc_id).containers(1).elements.extend;
-    lnID := grDoc(p_doc_id).containers(1).elements.count;
+    grDoc(p_doc_id).containers(lnContainerID).elements.extend;
+    lnID := grDoc(p_doc_id).containers(lnContainerID).elements.count;
 
-    grDoc(p_doc_id).containers(1).elements(lnID).element_type := 'TABLE';
-    grDoc(p_doc_id).containers(1).elements(lnID).table_data.rows_num := p_rows;
-    grDoc(p_doc_id).containers(1).elements(lnID).table_data.columns_num := p_columns;
+    grDoc(p_doc_id).containers(lnContainerID).elements(lnID).element_type := 'TABLE';
+    grDoc(p_doc_id).containers(lnContainerID).elements(lnID).table_data.rows_num := p_rows;
+    grDoc(p_doc_id).containers(lnContainerID).elements(lnID).table_data.columns_num := p_columns;
 
-    grDoc(p_doc_id).containers(1).elements(lnID).table_data.width := p_table_width;
+    grDoc(p_doc_id).containers(lnContainerID).elements(lnID).table_data.width := p_table_width;
 
-    grDoc(p_doc_id).containers(1).elements(lnID).table_data.border_top := p_border_top;
-    grDoc(p_doc_id).containers(1).elements(lnID).table_data.border_bottom := p_border_bottom;
-    grDoc(p_doc_id).containers(1).elements(lnID).table_data.border_left := p_border_left;
-    grDoc(p_doc_id).containers(1).elements(lnID).table_data.border_right := p_border_right;
-    grDoc(p_doc_id).containers(1).elements(lnID).table_data.border_inside_h := p_border_inside_h;
-    grDoc(p_doc_id).containers(1).elements(lnID).table_data.border_inside_v := p_border_inside_v;
+    grDoc(p_doc_id).containers(lnContainerID).elements(lnID).table_data.border_top := p_border_top;
+    grDoc(p_doc_id).containers(lnContainerID).elements(lnID).table_data.border_bottom := p_border_bottom;
+    grDoc(p_doc_id).containers(lnContainerID).elements(lnID).table_data.border_left := p_border_left;
+    grDoc(p_doc_id).containers(lnContainerID).elements(lnID).table_data.border_right := p_border_right;
+    grDoc(p_doc_id).containers(lnContainerID).elements(lnID).table_data.border_inside_h := p_border_inside_h;
+    grDoc(p_doc_id).containers(lnContainerID).elements(lnID).table_data.border_inside_v := p_border_inside_v;
     
-    p_table_column_width(p_doc_id, lnID, p_columns_width);
+    p_table_column_width(
+        p_doc_id => p_doc_id, 
+        p_container_id => lnContainerID,
+        p_table_id => lnID, 
+        p_width => p_columns_width 
+    );
     
-    --kreirana polja
+    --create cells
     FOR v IN 1 .. p_rows LOOP
         FOR s IN 1 .. p_columns LOOP
-            grDoc(p_doc_id).containers(1).elements(lnID).table_data.cells(v || ',' || s) := null;
+            grDoc(p_doc_id).containers(lnContainerID).elements(lnID).table_data.cells(v || ',' || s) := null;
         END LOOP;
     END LOOP;
 
