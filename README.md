@@ -1,4 +1,4 @@
-# Oracle PL/SQL Package for Microsoft Word DocX Documents Generation
+# Oracle PL/SQL API for Microsoft Word DocX Documents Generation
 Microsoft Word Documents Generator Package provides functionality to quickly and efficiently generate Microsoft Word Documents (DOCX) directly from Oracle database.
 
 It requires no additional resources and it is developed in pure PL/SQL.
