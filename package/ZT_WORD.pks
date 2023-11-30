@@ -14,7 +14,7 @@ CREATE OR REPLACE PACKAGE zt_word AS
     2.0        30/03/2020  Zoran Tica       3. Images; table borders
     2.1        11/04/2021  Javier Meza      4. Default spelling and grammar language (f_new_document, parameter p_lang)
     2.11       31/12/2021  Zoran Tica       5. Fixed special characters issue
-    3.0        30/11/2023  Zoran Tica       6. Draw a table in the header or footer; procedure for document download
+    2.2        30/11/2023  Zoran Tica       6. Draw a table in the header or footer; procedure for document download
 
     ----------------------------------------------------------------------------
     Copyright (C) 2017 - Zoran Tica

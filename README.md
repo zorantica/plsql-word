@@ -5,8 +5,10 @@ It requires no additional resources and it is developed in pure PL/SQL.
 
 ## Changelog
 1.0 - Initial Release
-
 2.0 - Images; table borders
+2.1 - Default spelling and grammar language
+2.11 - Fixed special characters issue
+2.2 - Draw a table in the header or footer
 
 ## Install
 - download 2 script files from "package" directory 
