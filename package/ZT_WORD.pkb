@@ -834,24 +834,6 @@ END p_add_document_to_zip;
 
 
 
-PROCEDURE p_save_file(
-    p_document blob,
-    p_file_name varchar2 default 'my_document.docx',
-    p_folder varchar2 default 'MY_FOLDER'
-    ) IS
-
-    lfFile utl_file.file_type;
-    lnLen pls_integer := 32767;
-    
-BEGIN
-    lfFile := utl_file.fopen(p_folder, p_file_name, 'wb');
-    FOR i in 0 .. trunc( (dbms_lob.getlength(p_document) - 1 ) / lnLen ) LOOP
-        utl_file.put_raw(lfFile, dbms_lob.substr(p_document, lnLen, i * lnLen + 1));
-    END LOOP;
-    utl_file.fclose(lfFile);
-END p_save_file;
-
-
 
 FUNCTION f_content_types(p_doc_id number) RETURN clob IS
     lcClob clob;
@@ -2635,6 +2617,47 @@ BEGIN
     
 END;
 
+
+PROCEDURE p_save_file(
+    p_document blob,
+    p_file_name varchar2 default 'my_document.docx',
+    p_folder varchar2 default 'MY_FOLDER'
+    ) IS
+
+    lfFile utl_file.file_type;
+    lnLen pls_integer := 32767;
+    
+BEGIN
+    lfFile := utl_file.fopen(p_folder, p_file_name, 'wb');
+    FOR i in 0 .. trunc( (dbms_lob.getlength(p_document) - 1 ) / lnLen ) LOOP
+        utl_file.put_raw(lfFile, dbms_lob.substr(p_document, lnLen, i * lnLen + 1));
+    END LOOP;
+    utl_file.fclose(lfFile);
+
+END p_save_file;
+
+PROCEDURE p_download_document(
+    p_doc IN OUT blob,
+    p_file_name varchar2,
+    p_disposition varchar2 default 'attachment'  --values "attachment" and "inline"
+    ) IS
+BEGIN
+    htp.init;
+    OWA_UTIL.MIME_HEADER('application/pdf', FALSE);
+    htp.p('Content-length: ' || dbms_lob.getlength(p_doc) ); 
+    htp.p('Content-Disposition: ' || p_disposition || '; filename="' || p_file_name || '"' );
+    OWA_UTIL.HTTP_HEADER_CLOSE;
+
+    WPG_DOCLOAD.DOWNLOAD_FILE(p_doc);
+
+    --free temporary lob IF it is temporary
+    if dbms_lob.istemporary(p_doc) = 1 then
+        DBMS_LOB.FREETEMPORARY(p_doc);
+    end if;
+
+    --uncomment only if You plan to download the generated document from the APEX
+    --apex_application.stop_apex_engine;
+END p_download_document;  
 
 END zt_word;
 /

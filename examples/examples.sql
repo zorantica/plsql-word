@@ -1,5 +1,11 @@
 SET DEFINE OFF;
 
+/*
+At the end of this example the generated Word document is stored in a blob variable lbDocument.
+In order to get the generated document You should download it, save it to the folder, store it in the database table...
+So please adapt the code for Your needs.
+*/
+
 DECLARE
     CURSOR c_bill IS
         SELECT 'Bread' as name, 'pcs' as unit, 2 as q, 1.2 as price FROM dual UNION ALL
@@ -29,7 +35,7 @@ DECLARE
     lrPage ZT_WORD.r_page;
     lnImage pls_integer;
     
-    lbDokument blob;
+    lbDocument blob;
 
     function decode_base64(p_clob_in in clob) return blob is
     v_blob blob;
@@ -523,18 +529,6 @@ BEGIN
         p_doc_id => lnDok, 
         p_type => 'HEADER');
 
-    /*
-    lnImage := ZT_WORD.f_new_image_instance(
-        p_doc_id => lnDok,
-        p_container_id => lnHeader,
-        p_image_data => ZT_WORD.f_image_data(
-            p_image_id => lrImages(4),
-            p_width => 4,
-            p_height => 1.4
-        )
-    );
-    */
-
     lnImage := ZT_WORD.f_new_image_instance(
         p_doc_id => lnDok,
         p_container_id => lnHeader,
@@ -681,7 +675,7 @@ BEGIN
     );
     
 
-    --new page with table in footer - useful for memorandum templates
+    --new page with table in footer - useful for memo templates
     --header is already created (ZT-TECH logo)
     lnFooter := ZT_WORD.f_new_container(
         p_doc_id => lnDok, 
@@ -701,13 +695,19 @@ BEGIN
     );
 
 
-    --add a table in footer
+    --draw a table in the footer
     lnTable := ZT_WORD.f_new_table(
         p_doc_id => lnDok, 
-        p_container_id => lnFooter,
+        p_container_id => lnFooter,  --this parameter determines that a table in going to be drawn in the footer
         p_rows => 2,
-        p_columns => 2,
-        p_columns_width => '3000, 4000, 3500'
+        p_columns => 3,
+        p_columns_width => '5000, 1000, 4000',
+        p_border_top => ZT_WORD.f_border(p_border_type => 'wave'), 
+        p_border_left => ZT_WORD.f_border(p_border_type => 'none'), 
+        p_border_right => ZT_WORD.f_border(p_border_type => 'none'), 
+        p_border_bottom => ZT_WORD.f_border(p_border_type => 'none'),
+        p_border_inside_h => ZT_WORD.f_border(p_border_type => 'none'), 
+        p_border_inside_v => ZT_WORD.f_border(p_border_type => 'none')
     );
     
     ZT_WORD.p_table_cell(
@@ -718,7 +718,13 @@ BEGIN
         p_column => 1,
         p_alignment_h => 'LEFT',
         p_alignment_v => 'BOTTOM',
-        p_text => 'Top left cell'
+        p_text => 'ZT-TECH',
+        p_font => 
+            ZT_WORD.f_font(
+                p_font_name => 'Times new Roman',
+                p_font_size => 12,
+                p_bold => true
+            )
     );
 
     ZT_WORD.p_table_cell(
@@ -727,10 +733,22 @@ BEGIN
         p_table_id => lnTable, 
         p_row => 1, 
         p_column => 2,
+        p_alignment_h => 'RIGHT',
+        p_alignment_v => 'BOTTOM',
+        p_text => 'phone:'
+    );
+
+    ZT_WORD.p_table_cell(
+        p_doc_id => lnDok, 
+        p_container_id => lnFooter,
+        p_table_id => lnTable, 
+        p_row => 1, 
+        p_column => 3,
         p_alignment_h => 'LEFT',
         p_alignment_v => 'BOTTOM',
-        p_text => 'Top right cell'
+        p_text => '+386 41 222 333'
     );
+
 
     ZT_WORD.p_table_cell(
         p_doc_id => lnDok, 
@@ -740,7 +758,7 @@ BEGIN
         p_column => 1,
         p_alignment_h => 'LEFT',
         p_alignment_v => 'BOTTOM',
-        p_text => 'Bottom left cell'
+        p_text => 'racunalniske storitve s.p.'
     );
 
     ZT_WORD.p_table_cell(
@@ -749,19 +767,43 @@ BEGIN
         p_table_id => lnTable, 
         p_row => 2, 
         p_column => 2,
+        p_alignment_h => 'RIGHT',
+        p_alignment_v => 'BOTTOM',
+        p_text => 'address:'
+    );    
+
+    ZT_WORD.p_table_cell(
+        p_doc_id => lnDok, 
+        p_container_id => lnFooter,
+        p_table_id => lnTable, 
+        p_row => 2, 
+        p_column => 3,
         p_alignment_h => 'LEFT',
         p_alignment_v => 'BOTTOM',
-        p_text => 'Bottom right cell'
-    );    
+        p_text => 'Somwehere in the Slovenia'
+    );
+    
     
     --at the end we finish the document
-    --function returns the document as blob variable
-    lbDokument := ZT_WORD.f_make_document(lnDok);
+    --f_make_document function returns the document as a blob
+    lbDocument := ZT_WORD.f_make_document(lnDok);
     
-    --for testing purposes we save the document in directory
+    --for testing purposes 
+    --the document can be saved in the directory, it can be downloaded, stored in the database table (blob column)...
+    /*
     ZT_WORD.p_save_file(
-        p_document => lbDokument,
+        p_document => lbDocument,
         p_folder => 'D_SHARED',
-        p_file_name => 'ZT_WORD example.docx');
+        p_file_name => 'ZT_WORD example.docx'
+    );
+
+    pkg_apex_utl.p_download_document (
+        p_doc => lbDocument,
+        p_file_name => 'ZT_WORD example.docx'
+    );
+
+    INSERT INTO blob_table (id, blob_column) VALUES (1, lbDocument);
+    COMMIT;
+    */
     
 END;
