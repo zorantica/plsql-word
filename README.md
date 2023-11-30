@@ -24,4 +24,4 @@ A script with examples is available in "examples" directory. Strongly recommende
 ## Demo Application
 https://apex.oracle.com/pls/apex/f?p=zttechdemo
 
-![](https://github.com/zorantica/qr-code/blob/master/preview.jpg)
+![](https://github.com/zorantica/plsql-word/blob/master/preview.png)
