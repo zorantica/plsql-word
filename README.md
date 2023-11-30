@@ -22,4 +22,6 @@ New Package ZT_WORD is created in database schema.
 A script with examples is available in "examples" directory. Strongly recommended to try it first.
 
 ## Demo Application
-*in development*
+https://apex.oracle.com/pls/apex/f?p=zttechdemo
+
+![](https://github.com/zorantica/qr-code/blob/master/preview.jpg)
