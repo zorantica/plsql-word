@@ -177,7 +177,10 @@ FUNCTION f_new_paragraph(
     p_style varchar2 default null,
     p_list_id pls_integer default null,
     p_text varchar2 default null,
-    p_font r_font default null) RETURN pls_integer IS
+    p_font r_font default null,
+    p_replace_newline boolean default false,
+    p_newline_character varchar2 default chr(10)
+) RETURN pls_integer IS
     
     lnID pls_integer;
     lnContainerID pls_integer := nvl(p_container_id, 1);
@@ -199,7 +202,10 @@ BEGIN
             p_container_id => lnContainerID,
             p_paragraph_id => lnID, 
             p_text => p_text, 
-            p_font => p_font);
+            p_font => p_font,
+            p_replace_newline => p_replace_newline,
+            p_newline_character => p_newline_character
+        );
     end if;
     
     RETURN lnID;
@@ -634,8 +640,10 @@ PROCEDURE p_add_text(
     p_paragraph_id number,
     p_text varchar2 default null,
     p_font r_font default null,
-    p_image_data r_image_data default null
-    ) IS
+    p_image_data r_image_data default null,
+    p_replace_newline boolean default false,
+    p_newline_character varchar2 default chr(10)
+) IS
     
     lnID number;
     lnContainerID pls_integer := nvl(p_container_id, 1);
@@ -650,10 +658,32 @@ BEGIN
 
     grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts(lnID).text := p_text;
     grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts(lnID).font := p_font;
+    grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts(lnID).replace_newline := p_replace_newline;
+    grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts(lnID).newline_character := p_newline_character;
 
     grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts(lnID).image_data := p_image_data;
-END;
+END p_add_text;
 
+PROCEDURE p_add_line_break (
+    p_doc_id number,
+    p_container_id pls_integer default null,
+    p_paragraph_id number
+) IS
+
+    lnID number;
+    lnContainerID pls_integer := nvl(p_container_id, 1);
+
+BEGIN
+    if grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts is null then
+        grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts := t_text();
+    end if;
+
+    grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts.extend;
+    lnID := grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts.count;
+
+    grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts(lnID).line_break := true;
+
+END p_add_line_break;
 
 
   function little_endian( p_big number, p_bytes pls_integer := 4 )
@@ -2198,6 +2228,19 @@ PROCEDURE p_xml_text(
     p_doc_id pls_integer, 
     p_text r_text
     ) IS
+
+    CURSOR c_parts IS
+    SELECT
+        REGEXP_SUBSTR(p_text.text, '[^' || p_text.newline_character || ']+', 1, LEVEL) as text_part 
+    FROM DUAL
+    CONNECT BY 
+        REGEXP_SUBSTR(p_text.text, '[^' || p_text.newline_character || ']+', 1, LEVEL) IS NOT NULL
+    ;
+    
+    TYPE t_parts IS TABLE OF c_parts%ROWTYPE;
+    l_parts t_parts;
+    
+
 BEGIN
     if p_text.text is not null then
         p_add_clob_text('<w:r>');
@@ -2226,9 +2269,31 @@ BEGIN
             
         end if;
 
-        p_add_clob_text('<w:t xml:space="preserve">' || dbms_xmlgen.convert(p_text.text) || '</w:t>');
+        if p_text.replace_newline then  --replace newline character with Word's actual newline tag
+
+            OPEN c_parts;
+            FETCH c_parts BULK COLLECT INTO l_parts;
+            CLOSE c_parts;
+            
+            FOR t IN 1 .. l_parts.count LOOP
+                
+                p_add_clob_text('<w:t xml:space="preserve">' || dbms_xmlgen.convert(l_parts(t).text_part) || '</w:t>');
+                
+                if t < l_parts.count then
+                    p_add_clob_text('<w:br/>');
+                end if;
+            
+            END LOOP;
+        
+        else
+            p_add_clob_text('<w:t xml:space="preserve">' || dbms_xmlgen.convert(p_text.text) || '</w:t>');
+            
+        end if;
 
         p_add_clob_text('</w:r>');
+
+    elsif p_text.line_break = true then
+        p_add_clob_text('<w:br/>');
         
     elsif p_text.image_data.image_id is not null then
         p_xml_image(

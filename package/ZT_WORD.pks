@@ -15,6 +15,7 @@ CREATE OR REPLACE PACKAGE zt_word AS
     2.1        11/04/2021  Javier Meza      4. Default spelling and grammar language (f_new_document, parameter p_lang)
     2.11       31/12/2021  Zoran Tica       5. Fixed special characters issue
     2.2        30/11/2023  Zoran Tica       6. Draw a table in the header or footer; procedure for document download
+    2.3        22/08/2024  Zoran Tica       7. Line break in a paragraph
 
     ----------------------------------------------------------------------------
     Copyright (C) 2017 - Zoran Tica
@@ -57,6 +58,9 @@ TYPE r_font IS RECORD (
 TYPE r_text IS RECORD (
     text varchar2(32000),
     font r_font,
+    replace_newline boolean,
+    newline_character varchar2(10),
+    line_break boolean,
     image_data zt_word.r_image_data
     );
 TYPE t_text IS TABLE OF r_text;
@@ -206,8 +210,10 @@ FUNCTION f_new_paragraph(
     p_style varchar2 default null,
     p_list_id pls_integer default null,
     p_text varchar2 default null,
-    p_font r_font default null
-    ) RETURN pls_integer;
+    p_font r_font default null,
+    p_replace_newline boolean default false,
+    p_newline_character varchar2 default chr(10)
+) RETURN pls_integer;
 
 
 FUNCTION f_border(
@@ -355,8 +361,16 @@ PROCEDURE p_add_text(
     p_paragraph_id number,
     p_text varchar2 default null,
     p_font r_font default null,
-    p_image_data r_image_data default null
+    p_image_data r_image_data default null,
+    p_replace_newline boolean default false,
+    p_newline_character varchar2 default chr(10)
     );
+
+PROCEDURE p_add_line_break (
+    p_doc_id number,
+    p_container_id pls_integer default null,
+    p_paragraph_id number
+);
 
 
 FUNCTION f_new_container(

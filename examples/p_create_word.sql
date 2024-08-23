@@ -1,12 +1,11 @@
-SET DEFINE OFF;
-
-/*
-At the end of this example the generated Word document is stored in a blob variable lbDocument.
-In order to get the generated document You should download it, save it to the folder, store it in the database table...
-So please adapt the code for Your needs.
-*/
-
-DECLARE
+CREATE OR REPLACE PROCEDURE p_create_word (
+    p_author varchar2 default 'Zoran Tica',
+    p_title varchar2 default 'Hello World',
+    p_bullets_count pls_integer default 10,
+    p_image blob default null,
+    p_image_w number default null,
+    p_image_h number default null
+) AS
     CURSOR c_bill IS
         SELECT 'Bread' as name, 'pcs' as unit, 2 as q, 1.2 as price FROM dual UNION ALL
         SELECT 'Milk' as name, 'pcs' as unit, 1 as q, 0.8 as price FROM dual UNION ALL
@@ -35,7 +34,9 @@ DECLARE
     lrPage ZT_WORD.r_page;
     lnImage pls_integer;
     
-    lbDocument blob;
+    lcText varchar2(32000);
+    
+    lbDokument blob;
 
     function decode_base64(p_clob_in in clob) return blob is
     v_blob blob;
@@ -84,8 +85,8 @@ BEGIN
 
     --first we create a new document and get a reference ID
     --function argument is document author name 
-    lnDok := ZT_WORD.f_new_document(
-        p_author => 'Alan Ford'
+    lnDok := ZT_WORD.f_new_document (
+        p_author => p_author
     );
 
 
@@ -141,7 +142,7 @@ BEGIN
     lnParagraph := ZT_WORD.f_new_paragraph(
         p_doc_id => lnDok,
         p_alignment_h => 'CENTER',
-        p_text => 'HELLO WORLD',
+        p_text => p_title,
         p_font => 
             ZT_WORD.f_font(
                 p_font_name => 'Times new Roman',
@@ -154,7 +155,7 @@ BEGIN
     --empty paragraph without any text
     lnParagraph := ZT_WORD.f_new_paragraph(
         p_doc_id => lnDok
-            );
+    );
 
             
     --here we add various text to paragraph, which we first create with some initial text
@@ -162,7 +163,7 @@ BEGIN
     lnParagraph := ZT_WORD.f_new_paragraph(
         p_doc_id => lnDok,
         p_text => 'This is &&& an example '
-            );
+    );
 
     ZT_WORD.p_add_text(
         p_doc_id => lnDok,
@@ -191,6 +192,45 @@ BEGIN
         p_text => 'and red.',
         p_font => ZT_WORD.f_font(p_color => 'FF0000')
         );
+
+    ZT_WORD.p_add_line_break (
+        p_doc_id => lnDok,
+        p_paragraph_id => lnParagraph
+    );
+
+    ZT_WORD.p_add_text(
+        p_doc_id => lnDok,
+        p_paragraph_id => lnParagraph,
+        p_text => 'And a new line of text in the same paragraph... introduced in the API version 2.3'
+    );
+
+
+    --a new paragraph without and with the multiline text
+    lcText := 
+        'A new paragraph where a newline is ignored...' || chr(10) ||
+        'with a new line...' || chr(10) ||
+        'and another line...'
+    ;
+        
+    lnParagraph := ZT_WORD.f_new_paragraph (
+        p_doc_id => lnDok,
+        p_replace_newline => false,  --single line text... newline character is ignored
+        p_newline_character => chr(10),
+        p_text => lcText
+    );
+
+    lcText := 
+        'A new paragraph where a newline is NOT ignored and it is correctly converted into a Word''s newline...' || chr(10) ||
+        'with a new line...' || chr(10) ||
+        'and another line...'
+    ;
+
+    lnParagraph := ZT_WORD.f_new_paragraph (
+        p_doc_id => lnDok,
+        p_replace_newline => true,  --multiline text
+        p_newline_character => chr(10),
+        p_text => lcText
+    );
     
 
     --now we add next paragraph with heading style
@@ -199,25 +239,26 @@ BEGIN
         p_doc_id => lnDok,
         p_text => 'Bullets and numbering',
         p_style => 'Heading1'
-            );
+    );
 
     lnParagraph := ZT_WORD.f_new_paragraph(
         p_doc_id => lnDok,
-        p_text => 'Bullets example',
+        p_text => 'Bullets example (selected ' || p_bullets_count || ' bullets)',
         p_style => 'Heading2'
-            );
+    );
 
     lnNum := ZT_WORD.f_new_bullet(
         p_doc_id => lnDok,
         p_char => '·',
-        p_font => 'Symbol');
+        p_font => 'Symbol'
+    );
 
-    FOR t IN 1 .. 10 LOOP
+    FOR t IN 1 .. p_bullets_count LOOP
         lnParagraph := ZT_WORD.f_new_paragraph(
             p_doc_id => lnDok,
             p_list_id => lnNum,
             p_text => 'Bulleting line ' || t
-                );
+        );
     END LOOP;
 
 
@@ -495,7 +536,7 @@ BEGIN
         p_doc_id => lnDok,
         p_image_data => ZT_WORD.f_image_data(
             p_image_id => lrImages(1),  --use ID returned by function ZT_WORD.f_add_image_to_document
-            p_width => 8.5,  --dimensions are in centimeters because centimeres are set as document dimensions
+            p_width => 8.5,  --dimensions are in centimeters because centimeters are set as document dimensions
             p_height => 6.38
         )
     );
@@ -780,30 +821,103 @@ BEGIN
         p_column => 3,
         p_alignment_h => 'LEFT',
         p_alignment_v => 'BOTTOM',
-        p_text => 'Somwehere in the Slovenia'
+        p_text => 'Somewhere in Slovenia'
+    );    
+
+
+    --included uploaded image in the document
+    lnHeader := ZT_WORD.f_new_container(
+        p_doc_id => lnDok, 
+        p_type => 'HEADER');
+
+    lnParagraph := ZT_WORD.f_new_paragraph(
+        p_doc_id => lnDok,
+        p_container_id => lnHeader,
+        p_alignment_h => 'CENTER',
+        p_text => 'Custom image upload',
+        p_font => 
+            ZT_WORD.f_font(
+                p_font_name => 'Times new Roman',
+                p_font_size => 18,
+                p_bold => true
+            )
+        );
+    
+    lrPage := ZT_WORD.f_get_default_page(p_doc_id => lnDok);
+    lrPage.header_ref := lnHeader;
+
+    lnBreak := ZT_WORD.f_new_section_break(
+        p_doc_id => lnDok,
+        p_section_type => 'nextPage',
+        p_page => lrPage
     );
+
+    if p_image is not null then
+    
+        lnParagraph := ZT_WORD.f_new_paragraph(
+            p_doc_id => lnDok,
+            p_text => 'Look! Your uploaded image is displayed below!'
+        );
+
+        lrImages( lrImages.count ) := ZT_WORD.f_add_image_to_document(
+            p_doc_id => lnDok,
+            p_filename => 'custom_image.jpg',
+            p_image => p_image
+        );
+        
+        lnImage := ZT_WORD.f_new_image_instance(
+            p_doc_id => lnDok,
+            p_image_data => ZT_WORD.f_image_data (
+                p_image_id => lrImages( lrImages.count ),
+                p_width => p_image_w,
+                p_height => p_image_h
+            )
+        );
+
+    else
+        lnParagraph := ZT_WORD.f_new_paragraph(
+            p_doc_id => lnDok,
+            p_text => 'Image is NOT uploaded... nothing to show here...'
+        );
+    end if;
+    
+    
     
     
     --at the end we finish the document
-    --f_make_document function returns the document as a blob
-    lbDocument := ZT_WORD.f_make_document(lnDok);
+    --f_make_document function returns the document in a form of the blob variable
+    lbDokument := ZT_WORD.f_make_document(lnDok);
+
+
     
-    --for testing purposes 
-    --the document can be saved in the directory, it can be downloaded, stored in the database table (blob column)...
     /*
+    the produced document can be:
+    - downloaded (for example from the APEX app)
+    - stored in the database table (blob column)
+    - saved in a directory
+    ...
+    */
+    
+    --downloaded (for example from the APEX app)
+    zt_word.p_download_document (
+        p_doc => lbDokument,
+        p_file_name => 'demo document.docx'
+    );
+    
+    /*
+    --saved in a directory
     ZT_WORD.p_save_file(
         p_document => lbDocument,
         p_folder => 'D_SHARED',
         p_file_name => 'ZT_WORD example.docx'
     );
-
-    pkg_apex_utl.p_download_document (
-        p_doc => lbDocument,
-        p_file_name => 'ZT_WORD example.docx'
-    );
-
+    
+    --inserted in a database table column
     INSERT INTO blob_table (id, blob_column) VALUES (1, lbDocument);
     COMMIT;
+    
     */
     
-END;
+    
+END p_create_word;
+/
