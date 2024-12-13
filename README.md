@@ -10,6 +10,7 @@ It requires no additional resources and it is developed in pure PL/SQL.
 - 2.11 - Fixed special characters issue
 - 2.2 - Draw a table in the header or footer
 - 2.3 - Newline in a paragraph support
+- 2.4 - Large text (clob) in a paragraph
 
 ## Install
 - download 2 script files from "package" folder 

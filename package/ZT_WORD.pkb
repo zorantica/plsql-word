@@ -2781,7 +2781,7 @@ BEGIN
     end if;
 
     --uncomment only if You plan to download the generated document from the APEX
-    apex_application.stop_apex_engine;
+    --apex_application.stop_apex_engine;
 END p_download_document;  
 
 END zt_word;

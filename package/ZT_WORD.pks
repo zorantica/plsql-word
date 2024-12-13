@@ -16,6 +16,7 @@ CREATE OR REPLACE PACKAGE zt_word AS
     2.11       31/12/2021  Zoran Tica       5. Fixed special characters issue
     2.2        30/11/2023  Zoran Tica       6. Draw a table in the header or footer; procedure for document download
     2.3        22/08/2024  Zoran Tica       7. Line break in a paragraph
+    2.4        13/12/2024  Zoran Tica       8. Large text in a paragraph
 
     ----------------------------------------------------------------------------
     Copyright (C) 2017 - Zoran Tica
