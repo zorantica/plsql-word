@@ -212,7 +212,8 @@ FUNCTION f_new_paragraph(
     p_text varchar2 default null,
     p_font r_font default null,
     p_replace_newline boolean default false,
-    p_newline_character varchar2 default chr(10)
+    p_newline_character varchar2 default chr(10),
+    p_text_clob clob default null
 ) RETURN pls_integer;
 
 
@@ -363,7 +364,8 @@ PROCEDURE p_add_text(
     p_font r_font default null,
     p_image_data r_image_data default null,
     p_replace_newline boolean default false,
-    p_newline_character varchar2 default chr(10)
+    p_newline_character varchar2 default chr(10),
+    p_text_clob clob default null
     );
 
 PROCEDURE p_add_line_break (

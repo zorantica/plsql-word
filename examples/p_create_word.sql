@@ -4,7 +4,8 @@ CREATE OR REPLACE PROCEDURE p_create_word (
     p_bullets_count pls_integer default 10,
     p_image blob default null,
     p_image_w number default null,
-    p_image_h number default null
+    p_image_h number default null,
+    p_clob_paragraph_text clob default null
 ) AS
     CURSOR c_bill IS
         SELECT 'Bread' as name, 'pcs' as unit, 2 as q, 1.2 as price FROM dual UNION ALL
@@ -881,7 +882,49 @@ BEGIN
         );
     end if;
     
+
+
+    --included uploaded image in the document
+    lnHeader := ZT_WORD.f_new_container(
+        p_doc_id => lnDok, 
+        p_type => 'HEADER');
+
+    lnParagraph := ZT_WORD.f_new_paragraph(
+        p_doc_id => lnDok,
+        p_container_id => lnHeader,
+        p_alignment_h => 'CENTER',
+        p_text => 'Large text in one paragraph...',
+        p_font => 
+            ZT_WORD.f_font(
+                p_font_name => 'Times new Roman',
+                p_font_size => 18,
+                p_bold => true
+            )
+        );
     
+    lrPage := ZT_WORD.f_get_default_page(p_doc_id => lnDok);
+    lrPage.header_ref := lnHeader;
+
+    lnBreak := ZT_WORD.f_new_section_break(
+        p_doc_id => lnDok,
+        p_section_type => 'nextPage',
+        p_page => lrPage
+    );
+    
+    
+    if p_clob_paragraph_text is not null then
+        lnParagraph := ZT_WORD.f_new_paragraph(
+            p_doc_id => lnDok,
+            p_text_clob => p_clob_paragraph_text
+        );
+    
+    else
+        lnParagraph := ZT_WORD.f_new_paragraph(
+            p_doc_id => lnDok,
+            p_text => 'Large text document is NOT uploaded... plain old short text displayed...'
+        );
+    
+    end if;
     
     
     --at the end we finish the document

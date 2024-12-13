@@ -179,7 +179,8 @@ FUNCTION f_new_paragraph(
     p_text varchar2 default null,
     p_font r_font default null,
     p_replace_newline boolean default false,
-    p_newline_character varchar2 default chr(10)
+    p_newline_character varchar2 default chr(10),
+    p_text_clob clob default null
 ) RETURN pls_integer IS
     
     lnID pls_integer;
@@ -206,6 +207,34 @@ BEGIN
             p_replace_newline => p_replace_newline,
             p_newline_character => p_newline_character
         );
+    elsif p_text_clob is not null then
+    
+        DECLARE
+            l_counter pls_integer := 0;
+            l_text varchar2(30000);
+        BEGIN
+        
+            LOOP
+        
+                l_text := substr(p_text_clob, 1 + 30000 * l_counter, 30000);
+                EXIT WHEN l_text is null OR l_counter > 10;
+        
+                p_add_text(
+                    p_doc_id => p_doc_id,
+                    p_container_id => lnContainerID,
+                    p_paragraph_id => lnID, 
+                    p_text => l_text, 
+                    p_font => p_font,
+                    p_replace_newline => p_replace_newline,
+                    p_newline_character => p_newline_character
+                );
+                
+                l_counter := l_counter + 1;
+                
+            END LOOP;
+        
+        END;
+    
     end if;
     
     RETURN lnID;
@@ -642,13 +671,44 @@ PROCEDURE p_add_text(
     p_font r_font default null,
     p_image_data r_image_data default null,
     p_replace_newline boolean default false,
-    p_newline_character varchar2 default chr(10)
+    p_newline_character varchar2 default chr(10),
+    p_text_clob clob default null
 ) IS
     
     lnID number;
     lnContainerID pls_integer := nvl(p_container_id, 1);
     
 BEGIN
+    if p_text is null and p_text_clob is not null then
+    
+        DECLARE
+            l_counter pls_integer := 0;
+            l_text varchar2(30000);
+        BEGIN
+        
+            LOOP
+        
+                l_text := substr(p_text_clob, 1 + 30000 * l_counter, 30000);
+                EXIT WHEN l_text is null OR l_counter > 10;
+        
+                p_add_text(
+                    p_doc_id => p_doc_id,
+                    p_container_id => lnContainerID,
+                    p_paragraph_id => lnID, 
+                    p_text => l_text, 
+                    p_font => p_font,
+                    p_replace_newline => p_replace_newline,
+                    p_newline_character => p_newline_character
+                );
+                
+                l_counter := l_counter + 1;
+                
+            END LOOP;
+        
+        END;
+    
+    end if;
+
     if grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts is null then
         grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts := t_text();
     end if;
@@ -2721,7 +2781,7 @@ BEGIN
     end if;
 
     --uncomment only if You plan to download the generated document from the APEX
-    --apex_application.stop_apex_engine;
+    apex_application.stop_apex_engine;
 END p_download_document;  
 
 END zt_word;

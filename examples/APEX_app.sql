@@ -28,12 +28,12 @@ prompt APPLICATION 135 - ZT_WORD demo
 -- Application Export:
 --   Application:     135
 --   Name:            ZT_WORD demo
---   Date and Time:   11:27 Friday August 23, 2024
+--   Date and Time:   15:36 Friday December 13, 2024
 --   Exported By:     ZORAN
 --   Flashback:       0
 --   Export Type:     Application Export
 --     Pages:                      6
---       Items:                   11
+--       Items:                   12
 --       Processes:                5
 --       Regions:                  8
 --       Buttons:                  2
@@ -114,7 +114,7 @@ wwv_flow_api.create_flow(
 ,p_substitution_string_01=>'APP_NAME'
 ,p_substitution_value_01=>'ZT_WORD demo'
 ,p_last_updated_by=>'ZORAN'
-,p_last_upd_yyyymmddhh24miss=>'20240823112555'
+,p_last_upd_yyyymmddhh24miss=>'20241213153552'
 ,p_file_prefix => nvl(wwv_flow_application_install.get_static_app_file_prefix,'')
 ,p_files_version=>3
 ,p_ui_type_name => null
@@ -10610,7 +10610,7 @@ wwv_flow_api.create_page(
 ,p_autocomplete_on_off=>'OFF'
 ,p_page_template_options=>'#DEFAULT#'
 ,p_last_updated_by=>'ZORAN'
-,p_last_upd_yyyymmddhh24miss=>'20240823112555'
+,p_last_upd_yyyymmddhh24miss=>'20241213153552'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(138005381322367830)
@@ -10633,7 +10633,9 @@ wwv_flow_api.create_page_plug(
 '<h4>Execute a Demo</h4>',
 '<p>',
 'Open a page for downloading a Word document. <a href="&P1_LINK.">It is accessible from the main menu.. or simply click here.</a><br>',
-'Then just fill some text items on the page and click on the Download button. The procedure for document generation is executed.<br>',
+'Then just fill some text items on the page and optionally upload an image or large text file. Examples can be found in the "examples" folder. THis image and large text document are going to be included in the document.<br>',
+'An click on the Download button... that''s it.<br>',
+'The procedure for document generation is executed.<br>',
 'The produced document with Your data included should be downloaded in the browser.',
 '</p>'))
 ,p_plug_query_options=>'DERIVED_REPORT_COLUMNS'
@@ -10677,10 +10679,11 @@ wwv_flow_api.create_page(
 ,p_name=>'Download WORD document'
 ,p_step_title=>'Download WORD document'
 ,p_reload_on_submit=>'A'
+,p_warn_on_unsaved_changes=>'N'
 ,p_autocomplete_on_off=>'OFF'
 ,p_page_template_options=>'#DEFAULT#'
 ,p_last_updated_by=>'ZORAN'
-,p_last_upd_yyyymmddhh24miss=>'20240823111646'
+,p_last_upd_yyyymmddhh24miss=>'20241213152914'
 );
 wwv_flow_api.create_page_plug(
  p_id=>wwv_flow_api.id(138004641421367823)
@@ -10787,7 +10790,7 @@ wwv_flow_api.create_page_item(
 wwv_flow_api.create_page_item(
  p_id=>wwv_flow_api.id(138005128004367828)
 ,p_name=>'P2_IMAGE_W'
-,p_item_sequence=>60
+,p_item_sequence=>70
 ,p_item_plug_id=>wwv_flow_api.id(142058641507816709)
 ,p_item_default=>'12'
 ,p_prompt=>'Image width (cm)'
@@ -10801,7 +10804,7 @@ wwv_flow_api.create_page_item(
 wwv_flow_api.create_page_item(
  p_id=>wwv_flow_api.id(138005229118367829)
 ,p_name=>'P2_IMAGE_H'
-,p_item_sequence=>70
+,p_item_sequence=>80
 ,p_item_plug_id=>wwv_flow_api.id(142058641507816709)
 ,p_item_default=>'4'
 ,p_prompt=>'Image height (cm)'
@@ -10812,6 +10815,22 @@ wwv_flow_api.create_page_item(
 ,p_item_template_options=>'#DEFAULT#'
 ,p_attribute_03=>'left'
 );
+wwv_flow_api.create_page_item(
+ p_id=>wwv_flow_api.id(138005917345367836)
+,p_name=>'P2_CLOB_TEXT'
+,p_item_sequence=>90
+,p_item_plug_id=>wwv_flow_api.id(142058641507816709)
+,p_item_default=>'10'
+,p_prompt=>'Optionally, upload the large text document'
+,p_display_as=>'NATIVE_FILE'
+,p_cSize=>30
+,p_colspan=>4
+,p_field_template=>wwv_flow_api.id(142017396690807554)
+,p_item_template_options=>'#DEFAULT#'
+,p_attribute_01=>'APEX_APPLICATION_TEMP_FILES'
+,p_attribute_09=>'SESSION'
+,p_attribute_10=>'N'
+);
 wwv_flow_api.create_page_process(
  p_id=>wwv_flow_api.id(138004494547367821)
 ,p_process_sequence=>10
@@ -10821,15 +10840,61 @@ wwv_flow_api.create_page_process(
 ,p_process_sql_clob=>wwv_flow_string.join(wwv_flow_t_varchar2(
 'DECLARE',
 '    l_image blob;',
-'    ',
+'    l_text blob;',
+'    l_large_text clob;',
+'',
+'    FUNCTION f_blob_to_clob (p_blob in blob)',
+'    RETURN CLOB',
+'    IS',
+'      v_file_blob blob;',
+'      v_file_clob clob;',
+'      v_file_size integer := dbms_lob.lobmaxsize;',
+'      v_dest_offset integer := 1;',
+'      v_src_offset integer := 1;',
+'      v_blob_csid number := dbms_lob.default_csid;',
+'      v_lang_context number := dbms_lob.default_lang_ctx;',
+'      v_warning integer;',
+'    BEGIN',
+'      DBMS_LOB.CREATETEMPORARY(v_file_clob, TRUE);',
+'',
+'      v_file_blob := p_blob;',
+'',
+'      dbms_lob.convertToClob(v_file_clob,',
+'      v_file_blob,',
+'      v_file_size,',
+'      v_dest_offset,',
+'      v_src_offset,',
+'      v_blob_csid,',
+'      v_lang_context,',
+'      v_warning);',
+'',
+'      IF v_warning = 0 THEN',
+'        RETURN v_file_clob;',
+'      END IF;',
+'    END;',
+'',
+'',
+'',
 'BEGIN',
 '    BEGIN',
 '        SELECT blob_content',
 '        INTO l_image',
 '        FROM apex_application_temp_files',
-'        WHERE rownum = 1;',
+'        WHERE name = :P2_IMAGE;',
 '    EXCEPTION WHEN no_data_found THEN',
 '        l_image := null;',
+'    END;',
+'',
+'    BEGIN',
+'        SELECT blob_content',
+'        INTO l_text',
+'        FROM apex_application_temp_files',
+'        WHERE name = :P2_CLOB_TEXT;',
+'        ',
+'        l_large_text := f_blob_to_clob(l_text);',
+'        ',
+'    EXCEPTION WHEN no_data_found THEN',
+'        l_large_text := null;',
 '    END;',
 '',
 '    p_create_word (',
@@ -10838,7 +10903,8 @@ wwv_flow_api.create_page_process(
 '        p_bullets_count => :P2_BULLETS_COUNT,',
 '        p_image => l_image,',
 '        p_image_w => :P2_IMAGE_W,',
-'        p_image_h => :P2_IMAGE_H',
+'        p_image_h => :P2_IMAGE_H,',
+'        p_clob_paragraph_text => l_large_text',
 '    );',
 'END;',
 '',
