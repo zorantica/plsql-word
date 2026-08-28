@@ -180,7 +180,8 @@ FUNCTION f_new_paragraph(
     p_font r_font default null,
     p_replace_newline boolean default false,
     p_newline_character varchar2 default chr(10),
-    p_text_clob clob default null
+    p_text_clob clob default null,
+    p_convert_xml_data boolean default true
 ) RETURN pls_integer IS
     
     lnID pls_integer;
@@ -205,7 +206,8 @@ BEGIN
             p_text => p_text, 
             p_font => p_font,
             p_replace_newline => p_replace_newline,
-            p_newline_character => p_newline_character
+            p_newline_character => p_newline_character,
+            p_convert_xml_data => p_convert_xml_data
         );
     elsif p_text_clob is not null then
     
@@ -226,7 +228,8 @@ BEGIN
                     p_text => l_text, 
                     p_font => p_font,
                     p_replace_newline => p_replace_newline,
-                    p_newline_character => p_newline_character
+                    p_newline_character => p_newline_character,
+                    p_convert_xml_data => p_convert_xml_data
                 );
                 
                 l_counter := l_counter + 1;
@@ -361,7 +364,10 @@ PROCEDURE p_table_cell(
     p_text varchar2 default null,
     p_font r_font default null,
     p_image_data r_image_data default null,
-    p_container_id pls_integer default null
+    p_container_id pls_integer default null,
+    p_replace_newline boolean default false,
+    p_newline_character varchar2 default chr(10),
+    p_convert_xml_data boolean default true
     ) IS
     
     lnID pls_integer;
@@ -393,6 +399,9 @@ BEGIN
         
         grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).text := p_text;
         grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).font := p_font;
+        grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).replace_newline := p_replace_newline;
+        grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).newline_character := p_newline_character;
+        grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).convert_xml_data := p_convert_xml_data;
 
         grDoc(p_doc_id).containers(lnContainerID).elements(p_table_id).table_data.cells(p_row || ',' || p_column).paragraph.texts(lnID).image_data := p_image_data;
     end if;
@@ -672,7 +681,8 @@ PROCEDURE p_add_text(
     p_image_data r_image_data default null,
     p_replace_newline boolean default false,
     p_newline_character varchar2 default chr(10),
-    p_text_clob clob default null
+    p_text_clob clob default null,
+    p_convert_xml_data boolean default true
 ) IS
     
     lnID number;
@@ -698,7 +708,8 @@ BEGIN
                     p_text => l_text, 
                     p_font => p_font,
                     p_replace_newline => p_replace_newline,
-                    p_newline_character => p_newline_character
+                    p_newline_character => p_newline_character,
+                    p_convert_xml_data => p_convert_xml_data
                 );
                 
                 l_counter := l_counter + 1;
@@ -720,6 +731,7 @@ BEGIN
     grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts(lnID).font := p_font;
     grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts(lnID).replace_newline := p_replace_newline;
     grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts(lnID).newline_character := p_newline_character;
+    grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts(lnID).convert_xml_data := p_convert_xml_data;
 
     grDoc(p_doc_id).containers(lnContainerID).elements(p_paragraph_id).paragraph.texts(lnID).image_data := p_image_data;
 END p_add_text;
@@ -2337,7 +2349,11 @@ BEGIN
             
             FOR t IN 1 .. l_parts.count LOOP
                 
-                p_add_clob_text('<w:t xml:space="preserve">' || dbms_xmlgen.convert(l_parts(t).text_part) || '</w:t>');
+                p_add_clob_text(
+                    '<w:t xml:space="preserve">' || 
+                    CASE WHEN p_text.convert_xml_data THEN dbms_xmlgen.convert(l_parts(t).text_part) ELSE l_parts(t).text_part END || 
+                    '</w:t>'
+                );
                 
                 if t < l_parts.count then
                     p_add_clob_text('<w:br/>');
@@ -2346,7 +2362,11 @@ BEGIN
             END LOOP;
         
         else
-            p_add_clob_text('<w:t xml:space="preserve">' || dbms_xmlgen.convert(p_text.text) || '</w:t>');
+            p_add_clob_text(
+                '<w:t xml:space="preserve">' || 
+                CASE WHEN p_text.convert_xml_data THEN dbms_xmlgen.convert(p_text.text) ELSE p_text.text END || 
+                '</w:t>'
+            );
             
         end if;
 
@@ -2768,7 +2788,7 @@ PROCEDURE p_download_document(
     ) IS
 BEGIN
     htp.init;
-    OWA_UTIL.MIME_HEADER('application/pdf', FALSE);
+    --OWA_UTIL.MIME_HEADER('application/pdf', FALSE);
     htp.p('Content-length: ' || dbms_lob.getlength(p_doc) ); 
     htp.p('Content-Disposition: ' || p_disposition || '; filename="' || p_file_name || '"' );
     OWA_UTIL.HTTP_HEADER_CLOSE;
@@ -2781,7 +2801,7 @@ BEGIN
     end if;
 
     --uncomment only if You plan to download the generated document from the APEX
-    --apex_application.stop_apex_engine;
+    apex_application.stop_apex_engine;
 END p_download_document;  
 
 END zt_word;

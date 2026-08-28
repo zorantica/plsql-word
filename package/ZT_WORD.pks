@@ -17,6 +17,7 @@ CREATE OR REPLACE PACKAGE zt_word AS
     2.2        30/11/2023  Zoran Tica       6. Draw a table in the header or footer; procedure for document download
     2.3        22/08/2024  Zoran Tica       7. Line break in a paragraph
     2.4        13/12/2024  Zoran Tica       8. Large text in a paragraph
+    2.5        24/08/2026  Zoran Tica       9. Multiline text support in table cells; raw XML content within paragraph and table cell text
 
     ----------------------------------------------------------------------------
     Copyright (C) 2017 - Zoran Tica
@@ -62,7 +63,8 @@ TYPE r_text IS RECORD (
     replace_newline boolean,
     newline_character varchar2(10),
     line_break boolean,
-    image_data zt_word.r_image_data
+    image_data zt_word.r_image_data,
+    convert_xml_data boolean
     );
 TYPE t_text IS TABLE OF r_text;
 
@@ -214,7 +216,8 @@ FUNCTION f_new_paragraph(
     p_font r_font default null,
     p_replace_newline boolean default false,
     p_newline_character varchar2 default chr(10),
-    p_text_clob clob default null
+    p_text_clob clob default null,
+    p_convert_xml_data boolean default true
 ) RETURN pls_integer;
 
 
@@ -239,7 +242,10 @@ PROCEDURE p_table_cell(
     p_text varchar2 default null,
     p_font r_font default null,
     p_image_data r_image_data default null,
-    p_container_id pls_integer default null
+    p_container_id pls_integer default null,
+    p_replace_newline boolean default false,
+    p_newline_character varchar2 default chr(10),
+    p_convert_xml_data boolean default true
     );
         
 PROCEDURE p_table_merge_cells(
@@ -366,7 +372,8 @@ PROCEDURE p_add_text(
     p_image_data r_image_data default null,
     p_replace_newline boolean default false,
     p_newline_character varchar2 default chr(10),
-    p_text_clob clob default null
+    p_text_clob clob default null,
+    p_convert_xml_data boolean default true
     );
 
 PROCEDURE p_add_line_break (

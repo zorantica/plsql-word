@@ -12,7 +12,8 @@ CREATE OR REPLACE PROCEDURE p_create_word (
         SELECT 'Milk' as name, 'pcs' as unit, 1 as q, 0.8 as price FROM dual UNION ALL
         SELECT 'Eggs' as name, 'pack' as unit, 3 as q, 2.5 as price FROM dual UNION ALL
         SELECT 'Butter' as name, 'pcs' as unit, 1 as q, 3 as price FROM dual UNION ALL
-        SELECT 'Cookies' as name, 'pcs' as unit, 1 as q, 2 as price FROM dual;
+        SELECT 'Cookies' as name, 'pcs' as unit, 1 as q, 2 as price FROM dual
+    ;
 
     lcImage clob;
     lbImage1 blob;
@@ -355,7 +356,7 @@ BEGIN
     lnParagraph := ZT_WORD.f_new_paragraph(
         p_doc_id => lnDok,
         p_text => 'Here we are with bill example...'
-            );
+    );
 
 
     --tables and table cell manipulation
@@ -467,6 +468,67 @@ BEGIN
         p_alignment_h => 'RIGHT', 
         p_background_color => 'CCCCCC',
         p_text => to_char(lnSum, 'FM999G990D00') || 'EUR');
+
+
+    --another table with newline characters treated as word newline
+    lnParagraph := ZT_WORD.f_new_paragraph(
+        p_doc_id => lnDok
+    );
+    
+    lnParagraph := ZT_WORD.f_new_paragraph(
+        p_doc_id => lnDok,
+        p_text => 'And another example of table cell with multiple text lines...'
+    );
+
+    lnTable := ZT_WORD.f_new_table(
+        p_doc_id => lnDok, 
+        p_rows => 3,
+        p_columns => 2,
+        p_columns_width => '5000, 2000, 2000');
+    
+    ZT_WORD.p_table_cell(
+        p_doc_id => lnDok, 
+        p_table_id => lnTable, 
+        p_row => 1, 
+        p_column => 1, 
+        p_alignment_h => 'LEFT',
+        p_replace_newline => true,
+        p_text => 'Some text goes here
+and next line
+and another line
+and it stops here'
+    );
+
+
+    --and another table with text enriched with raw Word XML content
+    lnParagraph := ZT_WORD.f_new_paragraph(
+        p_doc_id => lnDok
+    );
+    
+    lnParagraph := ZT_WORD.f_new_paragraph(
+        p_doc_id => lnDok,
+        p_text => 'And another example of table cell containing text enriched with raw Word XML content...'
+    );
+
+    lnTable := ZT_WORD.f_new_table(
+        p_doc_id => lnDok, 
+        p_rows => 3,
+        p_columns => 2,
+        p_columns_width => '5000, 2000, 2000');
+    
+    ZT_WORD.p_table_cell(
+        p_doc_id => lnDok, 
+        p_table_id => lnTable, 
+        p_row => 1, 
+        p_column => 1, 
+        p_alignment_h => 'LEFT',
+        p_convert_xml_data => false,
+        p_text => 
+            '<w:p><w:r><w:t>' || 'Some text goes here' || '</w:t></w:r></w:p>' ||
+            '<w:p><w:r><w:rPr><w:color w:val="FF0000"/><w:t>' || 'And this is another paragraph within a cell colored in red' || '</w:t></w:rPr></w:r></w:p>' ||
+            '<w:p><w:r><w:rPr><w:b/><w:t>' || 'And another one, the bold one' || '</w:t></w:rPr></w:r></w:p>'
+    );
+    
     
 
     --new page with image
@@ -932,7 +994,6 @@ BEGIN
     lbDokument := ZT_WORD.f_make_document(lnDok);
 
 
-    
     /*
     the produced document can be:
     - downloaded (for example from the APEX app)
